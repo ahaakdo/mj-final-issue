@@ -6,7 +6,8 @@ import { ReText } from "@/components/ReText";
 import { useNav } from "@/layout/hooks/useNav";
 import SidebarLinkItem from "./SidebarLinkItem.vue";
 import SidebarExtraIcon from "./SidebarExtraIcon.vue";
-import { useRenderIcon } from "@/components/ReIcon/src/hooks";
+// import { useRenderIcon } from "@/components/ReIcon/src/hooks";
+import { useEnhancedRenderIcon } from "@/utils/iconRender";
 import {
   type PropType,
   type CSSProperties,
@@ -20,6 +21,7 @@ import ArrowUp from "~icons/ep/arrow-up-bold";
 import EpArrowDown from "~icons/ep/arrow-down-bold";
 import ArrowLeft from "~icons/ep/arrow-left-bold";
 import ArrowRight from "~icons/ep/arrow-right-bold";
+import { useRenderIcon } from "@/components/ReIcon/src/hooks";
 
 const attrs = useAttrs();
 const { layout, isCollapse, tooltipEffect, getDivStyle } = useNav();
@@ -78,10 +80,10 @@ const textClass = computed(() => {
 const expandCloseIcon = computed(() => {
   if (!getConfig()?.MenuArrowIconNoTransition) return "";
   return {
-    "expand-close-icon": useRenderIcon(EpArrowDown),
-    "expand-open-icon": useRenderIcon(ArrowUp),
-    "collapse-close-icon": useRenderIcon(ArrowRight),
-    "collapse-open-icon": useRenderIcon(ArrowLeft)
+    "expand-close-icon": useEnhancedRenderIcon(EpArrowDown),
+    "expand-open-icon": useEnhancedRenderIcon(ArrowUp),
+    "collapse-close-icon": useEnhancedRenderIcon(ArrowRight),
+    "collapse-open-icon": useEnhancedRenderIcon(ArrowLeft)
   };
 });
 
@@ -139,7 +141,7 @@ function resolvePath(routePath) {
       >
         <component
           :is="
-            useRenderIcon(
+            useEnhancedRenderIcon(
               toRaw(onlyOneChild.meta.icon) ||
                 (item.meta && toRaw(item.meta.icon))
             )

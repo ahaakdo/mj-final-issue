@@ -4,15 +4,19 @@ import { addIcon } from "@iconify/vue/dist/offline";
 
 // https://icon-sets.iconify.design/ep/?keyword=ep
 import EpHomeFilled from "~icons/ep/home-filled?raw";
-
+import EpClock from "~icons/ep/clock?raw";
+import ArrowRight from "~icons/ep/ArrowRight?raw";
+import CaretRight from "~icons/ep/CaretRight?raw";
 // https://icon-sets.iconify.design/ri/?keyword=ri
 import RiSearchLine from "~icons/ri/search-line?raw";
 import RiInformationLine from "~icons/ri/information-line?raw";
-
 const icons = [
   // Element Plus Icon: https://github.com/element-plus/element-plus-icons
   ["ep/home-filled", EpHomeFilled],
+  ["ep/ArrowRight", ArrowRight],
+  ["ep/CaretRight", CaretRight],
   // Remix Icon: https://github.com/Remix-Design/RemixIcon
+  ["ep/clock", EpClock],
   ["ri/search-line", RiSearchLine],
   ["ri/information-line", RiInformationLine]
 ];
