@@ -9,6 +9,7 @@ import { useElementPlus } from "@/plugins/elementPlus";
 import { injectResponsiveStorage } from "@/utils/responsive";
 import * as ElementPlusIconsVue from "@element-plus/icons-vue";
 import Table from "@pureadmin/table";
+import 'element-plus/dist/index.css'
 // import PureDescriptions from "@pureadmin/descriptions";
 
 // 引入重置样式
@@ -53,6 +54,9 @@ import "tippy.js/dist/tippy.css";
 import "tippy.js/themes/light.css";
 import VueTippy from "vue-tippy";
 app.use(VueTippy);
+
+import ElementPlus from 'element-plus'
+app.use(ElementPlus, { size: 'small', zIndex: 3000 })
 
 getPlatformConfig(app).then(async config => {
   setupStore(app);

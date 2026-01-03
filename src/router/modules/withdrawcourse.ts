@@ -15,7 +15,7 @@ export default {
     {
       path: "/coursewithdraw/withdraw",
       name: "courseWithdraw",
-      component: () => import("@/views/welcome/index.vue"),
+      component: () => import("@/views/coursewithdraw/index.vue"),
       meta: {
         title: "退课申请",
         showLink: true
