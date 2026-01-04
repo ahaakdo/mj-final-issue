@@ -15,7 +15,7 @@ export default {
     {
       path: "/coursechoose/record",
       name: "courseChoose",
-      component: () => import("@/views/welcome/index.vue"),
+      component: () => import("@/views/course/choose.vue"),
       meta: {
         title: "在线选课",
         showLink: true

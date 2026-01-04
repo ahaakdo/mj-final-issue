@@ -1,14 +1,17 @@
+import { tr } from "element-plus/es/locale/index.mjs";
+
 const Layout = () => import("@/layout/index.vue");
 
 export default {
   path: "/volleychannel",
   name: "VolleyChannel",
   component: Layout,
-  redirect: "/volleychannel/intro",
+  redirect: "/volleychannel/athlete",
   meta: {
-    icon: "ep:expand",
+    icon: "ep:view",
     title: "女排专栏",
-    rank: 10
+    rank: 10,
+    showLink: true
   },
   children: [
     {
