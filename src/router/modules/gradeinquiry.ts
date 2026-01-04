@@ -15,7 +15,7 @@ export default {
     {
       path: "/gradeinquiry/inquiry",
       name: "gradeInquiry",
-      component: () => import("@/views/welcome/index.vue"),
+      component: () => import("@/views/course/inquiry.vue"),
       meta: {
         title: "成绩查询",
         showLink: true
