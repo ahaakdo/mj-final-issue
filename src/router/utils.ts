@@ -22,6 +22,7 @@ import { userKey, type DataInfo } from "@/utils/auth";
 import { type menuType, routerArrays } from "@/layout/types";
 import { useMultiTagsStoreHook } from "@/store/modules/multiTags";
 import { usePermissionStoreHook } from "@/store/modules/permission";
+import { useUserStoreHook } from "@/store/modules/user";
 const IFrame = () => import("@/layout/frame.vue");
 // https://cn.vitejs.dev/guide/features.html#glob-import
 const modulesRoutes = import.meta.glob("/src/views/**/*.{vue,tsx}");
@@ -81,16 +82,30 @@ function isOneOfArray(a: Array<string>, b: Array<string>) {
     : true;
 }
 
-/** 从localStorage里取出当前登录用户的角色roles，过滤无权限的菜单 */
+/** 从localStorage里取出当前登录用户的角色roles，过滤无权限的菜单 - 修改此函数 */
 function filterNoPermissionTree(data: RouteComponent[]) {
-  const currentRoles =
-    storageLocal().getItem<DataInfo<number>>(userKey)?.roles ?? [];
-  const newTree = cloneDeep(data).filter((v: any) =>
-    isOneOfArray(v.meta?.roles, currentRoles)
-  );
+  const userInfo = storageLocal().getItem<DataInfo<number>>(userKey);
+  const userRoles = userInfo?.roles ?? [];
+
+  // 添加用户类型到角色检查中
+  if (userInfo?.user_type && !userRoles.includes(userInfo.user_type)) {
+    userRoles.push(userInfo.user_type);
+  }
+
+  const newTree = cloneDeep(data).filter((v: any) => {
+    // 如果菜单没有roles限制，则显示（公共菜单）
+    if (!v.meta?.roles || v.meta.roles.length === 0) {
+      return true;
+    }
+
+    // 检查用户是否有权限
+    return isOneOfArray(v.meta?.roles, userRoles);
+  });
+
   newTree.forEach(
     (v: any) => v.children && (v.children = filterNoPermissionTree(v.children))
   );
+
   return filterChildrenTree(newTree);
 }
 
@@ -154,8 +169,10 @@ function addPathMatch() {
   }
 }
 
-/** 处理动态路由（后端返回的路由） */
+/** 处理动态路由（后端返回的路由） - 修改此函数 */
 function handleAsyncRoutes(routeList) {
+  console.log("开始处理动态路由，路由数量:", routeList.length);
+
   if (routeList.length === 0) {
     usePermissionStoreHook().handleWholeMenus(routeList);
   } else {
@@ -167,8 +184,10 @@ function handleAsyncRoutes(routeList) {
             value => value.path === v.path
           ) !== -1
         ) {
+          console.log("路由已存在，跳过:", v.path);
           return;
         } else {
+          console.log("添加路由:", v.path, v.name);
           // 切记将路由push到routes后还需要使用addRoute，这样路由才能正常跳转
           router.options.routes[0].children.push(v);
           // 最终路由进行升序
@@ -183,8 +202,28 @@ function handleAsyncRoutes(routeList) {
         }
       }
     );
+
+    // 路由添加完成后，立即处理菜单并过滤
     usePermissionStoreHook().handleWholeMenus(routeList);
+
+    // 登录后立即过滤菜单
+    const userStore = useUserStoreHook();
+    console.log("用户store:", {
+      username: userStore.username,
+      user_type: userStore.user_type,
+      roles: userStore.roles
+    });
+    if (userStore.user_type) {
+      console.log("用户已登录，立即过滤菜单，角色:", userStore.user_type);
+      setTimeout(() => {
+        const permissionStore = usePermissionStoreHook();
+        if (permissionStore.filterMenusByRole) {
+          permissionStore.filterMenusByRole();
+        }
+      }, 100);
+    }
   }
+
   if (!useMultiTagsStoreHook().getMultiTagsCache) {
     useMultiTagsStoreHook().handleTags("equal", [
       ...routerArrays,
@@ -196,34 +235,58 @@ function handleAsyncRoutes(routeList) {
   addPathMatch();
 }
 
-/** 初始化路由（`new Promise` 写法防止在异步请求中造成无限循环）*/
+/** 初始化路由（`new Promise` 写法防止在异步请求中造成无限循环）- 修改此函数 */
 function initRouter() {
-  if (getConfig()?.CachingAsyncRoutes) {
-    // 开启动态路由缓存本地localStorage
-    const key = "async-routes";
-    const asyncRouteList = storageLocal().getItem(key) as any;
-    if (asyncRouteList && asyncRouteList?.length > 0) {
-      return new Promise(resolve => {
-        handleAsyncRoutes(asyncRouteList);
-        resolve(router);
-      });
-    } else {
-      return new Promise(resolve => {
-        getAsyncRoutes().then(({ data }) => {
+  console.log("开始初始化路由");
+
+  return new Promise((resolve, reject) => {
+    try {
+      // 获取动态路由
+      getAsyncRoutes()
+        .then(({ data }) => {
+          console.log("获取到动态路由数据:", data.length);
+
+          // 处理动态路由
           handleAsyncRoutes(cloneDeep(data));
-          storageLocal().setItem(key, data);
-          resolve(router);
+
+          // 路由初始化完成后，确保菜单正确过滤
+          setTimeout(() => {
+            const userStore = useUserStoreHook();
+            const permissionStore = usePermissionStoreHook();
+
+            if (userStore.user_type) {
+              console.log(
+                "路由初始化完成，过滤菜单，用户角色:",
+                userStore.user_type
+              );
+
+              // 确保菜单已加载
+              if (permissionStore.menusLoaded) {
+                if (permissionStore.filterMenusByRole) {
+                  permissionStore.filterMenusByRole();
+                }
+              } else {
+                // 如果菜单未加载，等待一下再过滤
+                setTimeout(() => {
+                  if (permissionStore.filterMenusByRole) {
+                    permissionStore.filterMenusByRole();
+                  }
+                }, 300);
+              }
+            }
+
+            resolve(router);
+          }, 200);
+        })
+        .catch(error => {
+          console.error("获取动态路由失败:", error);
+          reject(error);
         });
-      });
+    } catch (error) {
+      console.error("初始化路由失败:", error);
+      reject(error);
     }
-  } else {
-    return new Promise(resolve => {
-      getAsyncRoutes().then(({ data }) => {
-        handleAsyncRoutes(cloneDeep(data));
-        resolve(router);
-      });
-    });
-  }
+  });
 }
 
 /**
@@ -388,11 +451,37 @@ function handleTopMenu(route) {
 
 /** 获取所有菜单中的第一个菜单（顶级菜单）*/
 function getTopMenu(tag = false): menuType {
-  const topMenu = handleTopMenu(
-    usePermissionStoreHook().wholeMenus[0]?.children[0]
-  );
+  const permissionStore = usePermissionStoreHook();
+
+  // 优先使用过滤后的菜单
+  let menus = permissionStore.getFilteredMenus();
+  if (!menus || menus.length === 0) {
+    menus = permissionStore.wholeMenus;
+  }
+
+  if (!menus || menus.length === 0) return null;
+
+  const topMenu = handleTopMenu(menus[0]?.children[0]);
   tag && useMultiTagsStoreHook().handleTags("push", topMenu);
   return topMenu;
+}
+
+/** 强制刷新菜单（新增） */
+function refreshMenus() {
+  console.log("强制刷新菜单");
+  const permissionStore = usePermissionStoreHook();
+  const userStore = useUserStoreHook();
+
+  if (userStore.user_type && permissionStore.filterMenusByRole) {
+    // 重新过滤菜单
+    permissionStore.filterMenusByRole();
+
+    // 触发菜单更新事件
+    setTimeout(() => {
+      const emitter = require("@/utils/mitt").emitter;
+      emitter.emit("menu-refresh");
+    }, 100);
+  }
 }
 
 export {
@@ -411,5 +500,6 @@ export {
   handleAliveRoute,
   formatTwoStageRoutes,
   formatFlatteningRoutes,
-  filterNoPermissionTree
+  filterNoPermissionTree,
+  refreshMenus // 新增导出
 };

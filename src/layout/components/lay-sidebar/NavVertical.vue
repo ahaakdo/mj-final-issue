@@ -26,15 +26,21 @@ const {
   isCollapse,
   tooltipEffect,
   menuSelect,
-  toggleSideBar
+  toggleSideBar,
+  menus, // 新增：使用过滤后的菜单
+  refreshMenus // 新增：刷新菜单方法
 } = useNav();
 
 const subMenuData = ref([]);
 
+// 修改点1：使用过滤后的菜单
 const menuData = computed(() => {
-  return pureApp.layout === "mix" && device.value !== "mobile"
-    ? subMenuData.value
-    : usePermissionStoreHook().wholeMenus;
+  if (pureApp.layout === "mix" && device.value !== "mobile") {
+    return subMenuData.value;
+  }
+
+  // 使用过滤后的菜单而不是 wholeMenus
+  return menus.value;
 });
 
 const loading = computed(() =>
@@ -49,22 +55,19 @@ function getSubMenuData() {
   let path = "";
   path = defaultActive.value;
   subMenuData.value = [];
-  // path的上级路由组成的数组
-  const parentPathArr = getParentPaths(
-    path,
-    usePermissionStoreHook().wholeMenus
-  );
+
+  // 修改点2：使用过滤后的菜单获取父路径
+  const parentPathArr = getParentPaths(path, menus.value);
+
   // 当前路由的父级路由信息
-  const parenetRoute = findRouteByPath(
-    parentPathArr[0] || path,
-    usePermissionStoreHook().wholeMenus
-  );
-  if (!parenetRoute?.children) return;
-  subMenuData.value = parenetRoute?.children;
+  const parentRoute = findRouteByPath(parentPathArr[0] || path, menus.value);
+
+  if (!parentRoute?.children) return;
+  subMenuData.value = parentRoute?.children;
 }
 
 watch(
-  () => [route.path, usePermissionStoreHook().wholeMenus],
+  () => [route.path, menus.value], // 修改点3：监听 menus.value 而不是 wholeMenus
   () => {
     if (route.path.includes("/redirect")) return;
     getSubMenuData();
@@ -78,11 +81,21 @@ onMounted(() => {
   emitter.on("logoChange", key => {
     showLogo.value = key;
   });
+
+  // 新增：监听菜单刷新事件
+  emitter.on("menu-refresh", () => {
+    console.log("接收到菜单刷新事件");
+    // 重新获取子菜单数据
+    setTimeout(() => {
+      getSubMenuData();
+    }, 100);
+  });
 });
 
 onBeforeUnmount(() => {
-  // 解绑`logoChange`公共事件，防止多次触发
+  // 解绑事件
   emitter.off("logoChange");
+  emitter.off("menu-refresh"); // 新增：解绑菜单刷新事件
 });
 </script>
 
@@ -107,7 +120,9 @@ onBeforeUnmount(() => {
         :collapse-transition="false"
         :popper-effect="tooltipEffect"
         :default-active="defaultActive"
+        @select="menuSelect"
       >
+        >
         <LaySidebarItem
           v-for="routes in menuData"
           :key="routes.path"

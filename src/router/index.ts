@@ -133,8 +133,10 @@ router.beforeEach((to: ToRouteType, _from, next) => {
       handleAliveRoute(to);
     }
   }
+
   const userInfo = storageLocal().getItem<DataInfo<number>>(userKey);
   const externalLink = isUrl(to?.name as string);
+
   if (!externalLink) {
     to.matched.some(item => {
       if (!item.meta.title) return "";
@@ -143,19 +145,61 @@ router.beforeEach((to: ToRouteType, _from, next) => {
       else document.title = item.meta.title as string;
     });
   }
+
   /** 如果已经登录并存在登录信息后不能跳转到路由白名单，而是继续保持在当前页面 */
   function toCorrectRoute() {
     whiteList.includes(to.fullPath) ? next(_from.fullPath) : next();
   }
+
   if (Cookies.get(multipleTabsKey) && userInfo) {
-    // 无权限跳转403页面
-    if (to.meta?.roles && !isOneOfArray(to.meta?.roles, userInfo?.roles)) {
-      next({ path: "/error/403" });
+    // 页面刷新时重新过滤菜单
+    if (_from.name === undefined && to.name !== "Login") {
+      setTimeout(() => {
+        const permissionStore = usePermissionStoreHook();
+        if (permissionStore.filterMenusByRole) {
+          permissionStore.filterMenusByRole();
+        }
+      }, 100);
     }
+
+    // 修改的权限检查逻辑 - 增强版
+    if (to.meta?.roles) {
+      const requiredRoles = to.meta.roles as string[];
+      const userRoles = userInfo?.roles || [];
+
+      // 添加用户类型到角色数组中（如果没有的话）
+      if (userInfo?.user_type && !userRoles.includes(userInfo.user_type)) {
+        userRoles.push(userInfo.user_type);
+      }
+
+      // 检查是否有权限
+      let hasPermission = false;
+      for (const role of userRoles) {
+        if (requiredRoles.includes(role)) {
+          hasPermission = true;
+          break;
+        }
+      }
+
+      if (!hasPermission && requiredRoles.length > 0) {
+        console.log(
+          "无权限访问:",
+          to.path,
+          "需要角色:",
+          requiredRoles,
+          "用户角色:",
+          userRoles
+        );
+        next({ path: "/error/403" });
+        return;
+      }
+    }
+
     // 开启隐藏首页后在浏览器地址栏手动输入首页welcome路由则跳转到404页面
     if (VITE_HIDE_HOME === "true" && to.fullPath === "/welcome") {
       next({ path: "/error/404" });
     }
+
     if (_from?.name) {
       // name为超链接
       if (externalLink) {

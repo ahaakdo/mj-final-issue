@@ -9,9 +9,10 @@ import { useElementPlus } from "@/plugins/elementPlus";
 import { injectResponsiveStorage } from "@/utils/responsive";
 import * as ElementPlusIconsVue from "@element-plus/icons-vue";
 import Table from "@pureadmin/table";
-import 'element-plus/dist/index.css'
+import "element-plus/dist/index.css";
 // import PureDescriptions from "@pureadmin/descriptions";
-
+import { useUserStoreHook } from "@/store/modules/user";
+import { usePermissionStoreHook } from "@/store/modules/permission";
 // 引入重置样式
 import "./style/reset.scss";
 // 导入公共样式
@@ -55,9 +56,31 @@ import "tippy.js/themes/light.css";
 import VueTippy from "vue-tippy";
 app.use(VueTippy);
 
-import ElementPlus from 'element-plus'
-app.use(ElementPlus, { size: 'small', zIndex: 3000 })
+import ElementPlus from "element-plus";
+app.use(ElementPlus, { size: "small", zIndex: 3000 });
+if (localStorage.getItem("freshLogin") === "true") {
+  const userRole = localStorage.getItem("userRole");
+  console.log("检测到刚登录，用户角色:", userRole);
 
+  // 清除标记
+  localStorage.removeItem("freshLogin");
+  localStorage.removeItem("userRole");
+
+  // 确保用户store正确设置
+  const userStore = useUserStoreHook();
+  if (userRole && !userStore.user_type) {
+    userStore.user_type = userRole;
+    userStore.roles = [userRole];
+  }
+
+  // 确保菜单正确过滤
+  setTimeout(() => {
+    const permissionStore = usePermissionStoreHook();
+    if (permissionStore.filterMenusByRole) {
+      permissionStore.filterMenusByRole();
+    }
+  }, 300);
+}
 getPlatformConfig(app).then(async config => {
   setupStore(app);
   app.use(router);

@@ -1,3 +1,4 @@
+// src/layout/hooks/useNav.ts
 import { storeToRefs } from "pinia";
 import { getConfig } from "@/config";
 import { emitter } from "@/utils/mitt";
@@ -23,7 +24,16 @@ export function useNav() {
   const pureApp = useAppStoreHook();
   const routers = useRouter().options.routes;
   const { isFullscreen, toggle } = useFullscreen();
+  const permissionStore = usePermissionStoreHook();
+
+  // 修改点1：使用过滤后的菜单而不是原始菜单
+  const menus = computed(() => {
+    return permissionStore.getFilteredMenus();
+  });
+
+  // 如果需要，也可以保留原始菜单的引用
   const { wholeMenus } = storeToRefs(usePermissionStoreHook());
+
   /** 平台`layout`中所有`el-tooltip`的`effect`配置，默认`light` */
   const tooltipEffect = getConfig()?.TooltipEffect ?? "light";
 
@@ -49,6 +59,11 @@ export function useNav() {
     return isAllEmpty(useUserStoreHook()?.nickname)
       ? useUserStoreHook()?.username
       : useUserStoreHook()?.nickname;
+  });
+
+  /** 用户角色（新增） */
+  const userRole = computed(() => {
+    return useUserStoreHook()?.user_type || "";
   });
 
   const avatarsStyle = computed(() => {
@@ -82,6 +97,10 @@ export function useNav() {
   /** 退出登录 */
   function logout() {
     useUserStoreHook().logOut();
+    // 清空过滤菜单，重置为原始菜单
+    setTimeout(() => {
+      permissionStore.filteredMenus = [];
+    }, 100);
   }
 
   function backTopMenu() {
@@ -111,8 +130,9 @@ export function useNav() {
     }
   }
 
+  // 修改点2：使用过滤后的菜单进行判断
   function menuSelect(indexPath: string) {
-    if (wholeMenus.value.length === 0 || isRemaining(indexPath)) return;
+    if (menus.value.length === 0 || isRemaining(indexPath)) return;
     emitter.emit("changLayoutRoute", indexPath);
   }
 
@@ -124,6 +144,16 @@ export function useNav() {
   /** 获取`logo` */
   function getLogo() {
     return new URL("/logo.svg", import.meta.url).href;
+  }
+
+  /** 刷新菜单（新增） - 在登录成功后调用 */
+  function refreshMenus() {
+    console.log("刷新菜单，当前用户角色:", userRole.value);
+    permissionStore.filterMenusByRole();
+    // 触发菜单更新事件
+    setTimeout(() => {
+      emitter.emit("menu-refresh");
+    }, 50);
   }
 
   return {
@@ -150,8 +180,12 @@ export function useNav() {
     isCollapse,
     pureApp,
     username,
+    userRole, // 新增：返回用户角色
     userAvatar,
     avatarsStyle,
-    tooltipEffect
+    tooltipEffect,
+    menus, // 新增：返回过滤后的菜单
+    wholeMenus, // 保留原始菜单引用
+    refreshMenus // 新增：刷新菜单方法
   };
 }
