@@ -4,126 +4,104 @@ const db = require("../db");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 
-// --- 注册接口 ---
+const generateNumber = role => {
+  const prefix = role === "teacher" ? "T" : "S";
+  const date = new Date().toISOString().slice(0, 10).replace(/-/g, "");
+  const random = Math.floor(Math.random() * 10000)
+    .toString()
+    .padStart(4, "0");
+  return `${prefix}${date}${random}`;
+};
+
 router.post("/register", async (req, res) => {
-  const { username, password, real_name, user_type, email, phone } = req.body;
+  const { username, password, real_name, role } = req.body;
+
+  if (!username || !password || !role) {
+    return res.status(400).json({ msg: "用户名、密码和角色不能为空" });
+  }
+
+  const isTeacher = role === "teacher";
+  const tableName = isTeacher ? "teachers" : "students";
+  const idColumn = isTeacher ? "teacher_number" : "student_number";
 
   try {
-    // 1. 检查用户名是否存在
-    const [existing] = await db.query(
-      "SELECT id FROM users WHERE username = ?",
-      [username]
-    );
-    if (existing.length > 0) {
-      return res.status(400).json({ code: 400, message: "用户名已存在" });
-    }
+    // 1. 自动生成编号
+    const autoNumber = generateNumber(role);
 
     // 2. 密码加密
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // 3. 生成自增编号 (学号或工号)
-    let student_number = null;
-    let teacher_number = null;
+    // 3. 写入数据库
+    const sql = `INSERT INTO ${tableName} (username, password, real_name, ${idColumn}) VALUES (?, ?, ?, ?)`;
+    await db.execute(sql, [username, hashedPassword, real_name, autoNumber]);
 
-    if (user_type === "student") {
-      // 查询当前最大物理学号
-      const [rows] = await db.query(
-        'SELECT MAX(CAST(student_number AS UNSIGNED)) as maxNum FROM users WHERE user_type = "student"'
-      );
-      const nextNum = (rows[0].maxNum || 2024000) + 1; // 假设起始号为 2024001
-      student_number = nextNum.toString();
-    } else if (user_type === "teacher") {
-      // 查询当前最大物理工号
-      const [rows] = await db.query(
-        'SELECT MAX(CAST(teacher_number AS UNSIGNED)) as maxNum FROM users WHERE user_type = "teacher"'
-      );
-      const nextNum = (rows[0].maxNum || 1000) + 1; // 假设起始工号为 1001
-      teacher_number = nextNum.toString();
-    }
-
-    // 4. 写入数据库
-    // 注意：这里需要包含 student_number 和 teacher_number 字段
-    const [result] = await db.query(
-      `INSERT INTO users (username, password, real_name, user_type, student_number, teacher_number, email, phone, is_active)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)`,
-      [
-        username,
-        hashedPassword,
-        real_name,
-        user_type,
-        student_number,
-        teacher_number,
-        email,
-        phone
-      ]
-    );
-
-    res.json({
+    res.status(201).json({
       code: 200,
-      message: "注册成功",
+      msg: "注册成功",
       data: {
-        userId: result.insertId,
-        number: user_type === "student" ? student_number : teacher_number
+        username,
+        real_name,
+        role,
+        generated_number: autoNumber // 返回生成的编号给前端
       }
     });
-  } catch (error) {
-    console.error(error);
+  } catch (err) {
+    console.error(err);
     res
       .status(500)
-      .json({ code: 500, message: "服务器错误", error: error.message });
+      .json({ msg: "注册失败，用户名可能已被占用", error: err.message });
   }
 });
-
 // 登录
-router.post('/login', async (req, res) => {
-  const { username, password, user_type } = req.body;
+router.post("/login", async (req, res) => {
+  const { username, password, role } = req.body;
+  const tableName = role === "teacher" ? "teachers" : "students";
 
   try {
-    // 1. 先查用户
-    const [users] = await db.query('SELECT * FROM users WHERE username = ?', [username]);
+    // 1. 查询用户
+    const [rows] = await db.execute(
+      `SELECT * FROM ${tableName} WHERE username = ?`,
+      [username]
+    );
+    const user = rows[0];
 
-    if (users.length === 0) {
-      return res.status(401).json({ code: 401, message: '用户名或密码错误' });
+    if (!user) {
+      return res.status(401).json({ msg: "用户不存在" });
     }
 
-    const user = users[0];
+    let isMatch = false;
 
-    // 2. 【关键逻辑】身份强校验
-    // 假设 login_type 的值为 'student' 或 'teacher'
-    if (user.user_type !== user_type) {
-      // 如果用户是学生，但尝试从老师端登录，直接拦截
-      const identityName = user_type === 'teacher' ? '老师' : '学生';
-      return res.status(403).json({
-        code: 403,
-        message: `身份不匹配：该账号不是${identityName}账号，请前往正确的入口登录。`
-      });
+    // 2. 核心兼容逻辑
+    // 如果数据库里的密码是以 $2b$ 或 $2a$ 开头的，说明是 bcrypt 加密过的
+    if (user.password.startsWith("$2b$") || user.password.startsWith("$2a$")) {
+      isMatch = await bcrypt.compare(password, user.password);
     }
 
-    // 3. 校验密码
-    const isMatch = await bcrypt.compare(password, user.password);
+    // 3. 如果加密比对没过，或者是明文，则直接尝试字符串比对
     if (!isMatch) {
-      return res.status(401).json({ code: 401, message: '用户名或密码错误' });
+      isMatch = password === user.password;
     }
 
-    // 4. 生成 Token
+    if (!isMatch) {
+      return res.status(401).json({ msg: "密码错误" });
+    }
+
+    // 4. 签发 Token
     const token = jwt.sign(
-      { id: user.id, role: user.user_type },
-      'your_secret_key',
-      { expiresIn: '24h' }
+      { id: user.id, role: role, username: user.username },
+      "volleyball_2026_secret",
+      { expiresIn: "24h" }
     );
 
     res.json({
       code: 200,
-      message: '登录成功',
+      msg: "登录成功",
       token,
-      data: {
-        username: user.username,
-        user_type: user.user_type
-      }
+      user: { id: user.id, name: user.real_name, role: role }
     });
-
-  } catch (error) {
-    res.status(500).json({ code: 500, message: '服务器错误' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ msg: "服务器内部错误" });
   }
 });
 

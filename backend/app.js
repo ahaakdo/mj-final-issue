@@ -3,6 +3,7 @@ const cors = require("cors");
 const playerRouter = require("./routes/players");
 const matchRouter = require("./routes/matches");
 const authRouter = require("./routes/auth");
+const courseRouter = require("./routes/course");
 
 const app = express();
 
@@ -15,6 +16,7 @@ app.use(express.urlencoded({ extended: true })); // 解析表单格式
 app.use("/api/players", playerRouter);
 app.use("/api/matches", matchRouter);
 app.use("/api/auth", authRouter);
+app.use("/api/courses", courseRouter);
 
 const PORT = 3000;
 app.listen(PORT, () => {
