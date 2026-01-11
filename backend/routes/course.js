@@ -62,4 +62,147 @@ router.get("/", async (req, res) => {
   }
 });
 
+// 申请（退课，选课）
+router.post("/apply", async (req, res) => {
+  try {
+    const {
+      student_id,
+      course_id,
+      application_type,
+      apply_reason,
+      urgent,
+      expire_time,
+      special_message,
+      phone,
+      email,
+      material
+    } = req.body;
+
+    if (!student_id || !course_id) {
+      return res
+        .status(400)
+        .json({ code: 400, message: "Missing student_id or course_id" });
+    }
+
+    // 插入新记录，状态强制为 pending
+    const sql = `
+      INSERT INTO course_signups (
+        student_id, course_id, application_type, apply_reason,
+        urgent, expire_time, special_message, phone, email, material,
+        apply_type, apply_time
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, "pending", NOW());
+    `;
+
+    const params = [
+      student_id,
+      course_id,
+      application_type,
+      apply_reason,
+      urgent || 1,
+      special_message,
+      phone,
+      email,
+      material
+    ];
+
+    const [result] = await db.query(sql, params);
+
+    res.json({
+      code: 200,
+      message: "Success",
+      data: { id: result.insertId }
+    });
+  } catch (error) {
+    console.error("Apply Error:", error.message);
+    res.status(500).json({ code: 500, message: "Internal Server Error" });
+  }
+});
+
+router.post("/withdraw", async (req, res) => {
+  try {
+    const {
+      student_id,
+      course_id,
+      withdraw_reason,
+      material,
+      expire_time,
+      urgent
+    } = req.body;
+
+    if (!student_id || !course_id) {
+      return res.status(400).json({ code: 400, message: "Missing info" });
+    }
+
+    // 1. 先检查是否存在该记录，以及是否已经是退课状态
+    const checkSql = `
+      SELECT application_type, apply_type
+      FROM course_signups
+      WHERE student_id = ? AND course_id = ?
+    `;
+    const [existing] = await db.query(checkSql, [student_id, course_id]);
+
+    if (existing.length === 0) {
+      return res.json({
+        code: 404,
+        message: "未找到对应的报名记录"
+      });
+    }
+
+    const currentRecord = existing[0];
+
+    // 2. 判断逻辑：如果 application_type 已经是 1（退课），则拦截
+    // 注意：这里用 == "1" 还是 1 取决于你数据库定义，VARCHAR 通常用字符串比较
+    if (currentRecord?.application_type === "1") {
+      return res.json({
+        code: 400,
+        message: "您已提交过退课申请，请等待老师审核"
+      });
+    }
+
+    // 3. 执行更新逻辑
+    const sql = `
+      UPDATE course_signups
+      SET
+        application_type = "1",
+        apply_reason = ?,
+        material = ?,
+        urgent = ?,
+        special_message = "",
+        expire_time = ?,
+        apply_type = "pending",
+        apply_time = CURRENT_TIMESTAMP,
+        updated_at = CURRENT_TIMESTAMP
+      WHERE student_id = ? AND course_id = ? AND apply_type != "reject";
+    `;
+
+    const [result] = await db.query(sql, [
+      withdraw_reason || "申请退课",
+      material || null,
+      urgent || 1,
+      expire_time || null,
+      student_id,
+      course_id
+    ]);
+
+    if (result.affectedRows === 0) {
+      return res.json({
+        code: 400,
+        message: "申请失败（记录可能已被拒绝或状态异常）"
+      });
+    }
+
+    res.json({
+      code: 200,
+      message: "Success",
+      data: { message: "退课申请已提交，等待审核" }
+    });
+  } catch (error) {
+    console.error("Withdraw Error:", error.message);
+    res.status(500).json({
+      code: 500,
+      message: "Internal Server Error"
+    });
+  }
+});
+
 module.exports = router;
