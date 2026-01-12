@@ -71,38 +71,52 @@ router.post("/apply", async (req, res) => {
       application_type,
       apply_reason,
       urgent,
-      expire_time,
       special_message,
       phone,
       email,
       material
     } = req.body;
 
+    // 1. 基础校验
     if (!student_id || !course_id) {
       return res
         .status(400)
         .json({ code: 400, message: "Missing student_id or course_id" });
     }
 
-    // 插入新记录，状态强制为 pending
+    // 2. 查重逻辑：检查该学生是否已经报过这门课
+    const checkSql =
+      "SELECT id FROM course_signups WHERE student_id = ? AND course_id = ?";
+    const [existing] = await db.query(checkSql, [student_id, course_id]);
+
+    if (existing.length > 0) {
+      return res.json({
+        code: 400,
+        message: "您已报名过该课程，请勿重复提交"
+      });
+    }
+
+    // 3. 插入新记录
+    // 这里的问号数量必须和 params 数组长度一致
     const sql = `
       INSERT INTO course_signups (
         student_id, course_id, application_type, apply_reason,
-        urgent, expire_time, special_message, phone, email, material,
+        urgent, special_message, phone, email, material,
         apply_type, apply_time
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, "pending", NOW());
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, "pending", NOW());
     `;
 
+    // params 数组：共 10 个元素，对应上面 SQL 的 10 个问号
     const params = [
       student_id,
       course_id,
-      application_type,
-      apply_reason,
+      application_type || "0",
+      apply_reason || "",
       urgent || 1,
-      special_message,
-      phone,
-      email,
-      material
+      special_message || "",
+      phone || "",
+      email || "",
+      material || null
     ];
 
     const [result] = await db.query(sql, params);
@@ -114,7 +128,11 @@ router.post("/apply", async (req, res) => {
     });
   } catch (error) {
     console.error("Apply Error:", error.message);
-    res.status(500).json({ code: 500, message: "Internal Server Error" });
+    res.status(500).json({
+      code: 500,
+      message: "Internal Server Error",
+      error: error.message
+    });
   }
 });
 
