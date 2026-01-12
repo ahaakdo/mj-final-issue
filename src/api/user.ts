@@ -73,3 +73,17 @@ export const getMockLogin = (data?: {
     }, 500);
   });
 };
+
+export type Result = {
+  success: boolean;
+  data?: any;
+  message?: string;
+  code?: number;
+};
+
+/** 注册接口 */
+export const userRegister = (data?: object) => {
+  return http.post<Result, any>("http://localhost:3000/api/auth/register", {
+    data
+  });
+};

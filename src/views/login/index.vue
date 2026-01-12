@@ -19,6 +19,8 @@ import dayIcon from "@/assets/svg/day.svg?component";
 import darkIcon from "@/assets/svg/dark.svg?component";
 import Lock from "~icons/ri/lock-fill";
 import User from "~icons/ri/user-3-fill";
+import { ElMessage } from "element-plus";
+import { userRegister } from "@/api/user";
 
 defineOptions({
   name: "Login"
@@ -163,7 +165,77 @@ const immediateDebounce: any = debounce(
   1000,
   true
 );
+const rules = {
+  username: [
+    { required: true, message: "请输入用户名", trigger: "blur" },
+    { min: 3, max: 15, message: "长度在 3 到 15 个字符", trigger: "blur" }
+  ],
+  password: [
+    { required: true, message: "请输入密码", trigger: "blur" },
+    { min: 6, message: "密码长度不能少于 6 位", trigger: "blur" }
+  ],
+  role: [{ required: true, message: "请选择角色", trigger: "change" }],
+  real_name: [{ required: true, message: "请输入真实姓名", trigger: "blur" }],
+  phone: [
+    { required: true, message: "请输入手机号", trigger: "blur" },
+    {
+      pattern: /^1[3-9]\d{9}$/,
+      message: "请输入正确的手机号码格式",
+      trigger: "blur"
+    }
+  ],
+  email: [
+    { required: true, message: "请输入邮箱", trigger: "blur" },
+    { type: "email", message: "请输入正确的邮箱格式", trigger: "blur" }
+  ]
+};
+// 打开注册弹窗
+const registerVisible = ref(false);
+const registerForm = reactive({
+  username: "",
+  password: "",
+  role: "", // 默认学生
+  real_name: "",
+  phone: "",
+  email: ""
+});
+const registerFormRef = ref(null);
+const register = () => {
+  registerVisible.value = true;
+};
+const resetForm = () => {
+  if (!registerFormRef.value) return;
+  registerFormRef.value.resetFields();
+};
+const handleRegister = async () => {
+  if (!registerFormRef.value) return;
 
+  await registerFormRef.value.validate(async valid => {
+    if (valid) {
+      loading.value = true;
+      try {
+        // 这里替换为你真实的 API 请求
+        console.log("提交的数据：", registerForm);
+        const res = await userRegister(registerForm);
+        if (res.code === 200 || res.success) {
+          ElMessage.success("注册成功！");
+          registerVisible.value = false;
+          resetForm(); // 注册成功后重置表单
+        } else {
+          ElMessage.error(res.message || "注册失败");
+        }
+        registerVisible.value = false;
+      } catch (error) {
+        ElMessage.error("注册失败，请稍后再试");
+      } finally {
+        loading.value = false;
+      }
+    } else {
+      console.log("表单校验未通过");
+      return false;
+    }
+  });
+};
 // 监听回车键，仅在登录表单显示时生效
 useEventListener(document, "keydown", ({ code }) => {
   if (
@@ -263,6 +335,9 @@ useEventListener(document, "keydown", ({ code }) => {
               >
                 快速学生登录
               </el-button>
+              <el-button type="info" size="small" @click="register">
+                注册
+              </el-button>
             </div>
           </Motion>
         </div>
@@ -359,6 +434,68 @@ useEventListener(document, "keydown", ({ code }) => {
       </div>
     </div>
   </div>
+  <el-dialog
+    v-model="registerVisible"
+    title="用户注册"
+    width="450px"
+    destroy-on-close
+    header-class="register-header"
+    body-class="register-body"
+    @close="resetForm"
+  >
+    <el-form
+      ref="registerFormRef"
+      :model="registerForm"
+      :rules="rules"
+      label-width="80px"
+      label-position="right"
+      status-icon
+    >
+      <el-form-item label="用户名" prop="username">
+        <el-input v-model="registerForm.username" placeholder="请输入用户名" />
+      </el-form-item>
+
+      <el-form-item label="密码" prop="password">
+        <el-input
+          v-model="registerForm.password"
+          type="password"
+          show-password
+          placeholder="请输入密码"
+        />
+      </el-form-item>
+
+      <el-form-item label="角色" prop="role">
+        <el-radio-group v-model="registerForm.role">
+          <el-radio label="student">学生</el-radio>
+          <el-radio label="teacher">老师</el-radio>
+        </el-radio-group>
+      </el-form-item>
+
+      <el-form-item label="真实姓名" prop="real_name">
+        <el-input
+          v-model="registerForm.real_name"
+          placeholder="请输入您的真名"
+        />
+      </el-form-item>
+
+      <el-form-item label="手机号" prop="phone">
+        <el-input v-model="registerForm.phone" placeholder="请输入手机号" />
+      </el-form-item>
+
+      <el-form-item label="邮箱" prop="email">
+        <el-input v-model="registerForm.email" placeholder="请输入邮箱地址" />
+      </el-form-item>
+    </el-form>
+
+    <template #footer>
+      <span class="dialog-footer">
+        <el-button @click="registerVisible = false">取消</el-button>
+        <el-button type="primary" :loading="loading" @click="handleRegister">
+          提交注册
+        </el-button>
+      </span>
+    </template>
+  </el-dialog>
 </template>
 
 <style scoped>
@@ -539,7 +676,7 @@ useEventListener(document, "keydown", ({ code }) => {
 :deep(.el-input) {
   .el-input__wrapper {
     border-radius: 8px;
-    padding: 12px 16px;
+    padding: 4px 16px;
 
     &:hover {
       box-shadow: 0 0 0 1px #409eff inset;
@@ -553,11 +690,30 @@ useEventListener(document, "keydown", ({ code }) => {
 
 :deep(.el-button) {
   border-radius: 8px;
-  height: 44px;
+  height: 32px;
   font-weight: 500;
 }
 
 :deep(.el-tag) {
   font-weight: 500;
+}
+</style>
+
+<style lang="scss">
+/* 全局样式，不带 scoped */
+.register-header {
+  .el-dialog__title {
+    display: block;
+    text-align: center;
+  }
+}
+
+/* 如果要去掉默认的右侧关闭按钮间距，确保标题居中或对齐 */
+.register-header.show-close {
+  padding-right: 15px !important;
+}
+
+.register-body {
+  padding-top: 14px;
 }
 </style>

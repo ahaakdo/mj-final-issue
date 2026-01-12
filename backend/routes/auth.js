@@ -14,7 +14,7 @@ const generateNumber = role => {
 };
 
 router.post("/register", async (req, res) => {
-  const { username, password, real_name, role } = req.body;
+  const { username, password, real_name, role, phone, email } = req.body;
 
   if (!username || !password || !role) {
     return res.status(400).json({ msg: "用户名、密码和角色不能为空" });
@@ -32,8 +32,15 @@ router.post("/register", async (req, res) => {
     const hashedPassword = await bcrypt.hash(password, 10);
 
     // 3. 写入数据库
-    const sql = `INSERT INTO ${tableName} (username, password, real_name, ${idColumn}) VALUES (?, ?, ?, ?)`;
-    await db.execute(sql, [username, hashedPassword, real_name, autoNumber]);
+    const sql = `INSERT INTO ${tableName} (username, password, real_name, ${idColumn}, phone, email) VALUES (?, ?, ?, ?, ?, ?)`;
+    await db.execute(sql, [
+      username,
+      hashedPassword,
+      real_name,
+      autoNumber,
+      phone,
+      email
+    ]);
 
     res.status(201).json({
       code: 200,
