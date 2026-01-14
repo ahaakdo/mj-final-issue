@@ -46,20 +46,20 @@ const { title } = useNav();
 const ruleForm = reactive({
   username: "",
   password: "",
-  user_type: "" as "teacher" | "student" | ""
+  role: "" as "teacher" | "student" | ""
 });
 
 // 选择角色
 const selectRole = (role: "teacher" | "student") => {
   selectedRole.value = role;
-  ruleForm.user_type = role;
+  ruleForm.role = role;
   showRoleSelection.value = false;
 };
 
 // 返回角色选择
 const backToRoleSelection = () => {
   selectedRole.value = "";
-  ruleForm.user_type = "";
+  ruleForm.role = "";
   showRoleSelection.value = true;
 };
 
@@ -77,7 +77,7 @@ const onLogin = async (formEl: FormInstance | undefined) => {
   if (!formEl) return;
 
   // 验证是否选择了角色
-  if (!ruleForm.user_type) {
+  if (!ruleForm.role) {
     message("请选择登录角色", { type: "warning" });
     return;
   }
@@ -96,7 +96,7 @@ const onLogin = async (formEl: FormInstance | undefined) => {
           await useUserStoreHook().simpleLogin({
               username: ruleForm.username,
               password: ruleForm.password,
-              user_type: ruleForm.user_type,
+              user_type: ruleForm.role,
               nickname: res.user.name,
               token: res.token
             })
@@ -129,7 +129,7 @@ const onLogin = async (formEl: FormInstance | undefined) => {
                   }
                   // 跳转到目标页面
                   const targetPath =
-                    ruleForm.user_type === "teacher"
+                    ruleForm.role === "teacher"
                       ? "/teacher/classmanage"
                       : "/welcome";
                   console.log("跳转到:", targetPath);
@@ -153,12 +153,12 @@ const onLogin = async (formEl: FormInstance | undefined) => {
           disabled.value = false;
         }
       } catch (e) {
-        ElMessage.error(e || "登录失败");
+        ElMessage.error("账户或密码错误");
         loading.value = false;
         disabled.value = false;
       }
     } else {
-      ElMessage.error("登录失败");
+      ElMessage.error("账户或密码错误");
       loading.value = false;
       disabled.value = false;
     }
