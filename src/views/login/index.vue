@@ -20,7 +20,8 @@ import darkIcon from "@/assets/svg/dark.svg?component";
 import Lock from "~icons/ri/lock-fill";
 import User from "~icons/ri/user-3-fill";
 import { ElMessage } from "element-plus";
-import { userRegister } from "@/api/user";
+import { userRegister, userLogin } from "@/api/user";
+import { setToken } from "@/utils/auth";
 
 defineOptions({
   name: "Login"
@@ -43,8 +44,8 @@ dataThemeChange(overallStyle.value);
 const { title } = useNav();
 
 const ruleForm = reactive({
-  username: "admin",
-  password: "admin123",
+  username: "",
+  password: "",
   user_type: "" as "teacher" | "student" | ""
 });
 
@@ -81,79 +82,83 @@ const onLogin = async (formEl: FormInstance | undefined) => {
     return;
   }
 
-  await formEl.validate(valid => {
+  await formEl.validate(async valid => {
     if (valid) {
       loading.value = true;
       disabled.value = true;
+      try {
+        const res: any = await userLogin({
+          ...ruleForm
+        });
+        console.log(res);
+        if (res.code === 200 || res.success) {
+          ElMessage.success("登录成功！");
+          await useUserStoreHook().simpleLogin({
+              username: ruleForm.username,
+              password: ruleForm.password,
+              user_type: ruleForm.user_type,
+              nickname: res.user.name,
+              token: res.token
+            })
+            .then(async (res: any) => {
+              if (res.success) {
+                console.log("登录成功，用户数据:", res.data);
 
-      // 简单验证账号密码
-      if (ruleForm.username === "admin" && ruleForm.password === "admin123") {
-        console.log("开始登录，用户类型:", ruleForm.user_type);
+                // 立即检查用户store
+                const userStore = useUserStoreHook();
+                  console.log("登录后用户store:", {
+                  username: userStore.username,
+                  user_type: userStore.user_type,
+                  roles: userStore.roles
+                });
 
-        // 使用simpleLogin方法
-        useUserStoreHook()
-          .simpleLogin({
-            username: ruleForm.username,
-            password: ruleForm.password,
-            user_type: ruleForm.user_type
-          })
-          .then(async (res: any) => {
-            if (res.success) {
-              console.log("登录成功，用户数据:", res.data);
+                // 初始化路由
+                await initRouter();
+                console.log("路由初始化完成");
 
-              // 立即检查用户store
-              const userStore = useUserStoreHook();
-              console.log("登录后用户store:", {
-                username: userStore.username,
-                user_type: userStore.user_type,
-                roles: userStore.roles
-              });
-
-              // 初始化路由
-              await initRouter();
-              console.log("路由初始化完成");
-
-              // 等待一下，然后过滤菜单
-              setTimeout(() => {
-                const permissionStore = usePermissionStoreHook();
-
-                // 调试信息
-                console.log("菜单加载状态:", permissionStore.menusLoaded);
-                console.log("原始菜单数量:", permissionStore.wholeMenus.length);
-
-                // 强制过滤菜单
-                if (permissionStore.filterMenusByRole) {
-                  console.log("开始过滤菜单，用户类型:", userStore.user_type);
-                  permissionStore.filterMenusByRole();
-                }
-
-                // 跳转到目标页面
-                const targetPath =
-                  ruleForm.user_type === "teacher"
-                    ? "/teacher/classmanage"
-                    : "/welcome";
-
-                console.log("跳转到:", targetPath);
-
-                // 使用window.location确保刷新
-                window.location.href = targetPath;
-              }, 300);
-            }
-          })
-          .catch(error => {
-            console.error("登录出错:", error);
-            message("登录过程出错", { type: "error" });
-            loading.value = false;
-            disabled.value = false;
-          });
-      } else {
-        setTimeout(() => {
-          message("账号或密码错误", { type: "error" });
+                // 等待一下，然后过滤菜单
+                setTimeout(() => {
+                  const permissionStore = usePermissionStoreHook();
+                  // 调试信息
+                  console.log("菜单加载状态:", permissionStore.menusLoaded);
+                  console.log("原始菜单数量:", permissionStore.wholeMenus.length);
+                  // 强制过滤菜单
+                  if (permissionStore.filterMenusByRole) {
+                    console.log("开始过滤菜单，用户类型:", userStore.user_type);
+                    permissionStore.filterMenusByRole();
+                  }
+                  // 跳转到目标页面
+                  const targetPath =
+                    ruleForm.user_type === "teacher"
+                      ? "/teacher/classmanage"
+                      : "/welcome";
+                  console.log("跳转到:", targetPath);
+                  // 使用window.location确保刷新
+                  window.location.href = targetPath;
+                }, 300);
+             }
+            })
+            .catch(error => {
+              console.error("登录出错:", error);
+              message("登录过程出错", { type: "error" });
+              loading.value = false;
+              disabled.value = false;
+            });
           loading.value = false;
           disabled.value = false;
-        }, 1000);
+        } else {
+          console.log(res);
+          ElMessage.error(res.message || "登录失败");
+          loading.value = false;
+          disabled.value = false;
+        }
+      } catch (e) {
+        ElMessage.error(e || "登录失败");
+        loading.value = false;
+        disabled.value = false;
       }
     } else {
+      ElMessage.error("登录失败");
       loading.value = false;
       disabled.value = false;
     }
@@ -379,12 +384,7 @@ useEventListener(document, "keydown", ({ code }) => {
             </div>
           </Motion>
 
-          <el-form
-            ref="ruleFormRef"
-            :model="ruleForm"
-            :rules="loginRules"
-            size="large"
-          >
+          <el-form ref="ruleFormRef" :model="ruleForm" size="large">
             <Motion :delay="150">
               <el-form-item
                 :rules="[

@@ -87,3 +87,10 @@ export const userRegister = (data?: object) => {
     data
   });
 };
+
+/** 登录接口 */
+export const userLogin = (data?: object) => {
+  return http.post<Result, any>("http://localhost:3000/api/auth/login", {
+    data
+  });
+};

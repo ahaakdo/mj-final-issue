@@ -73,7 +73,7 @@ router.post("/login", async (req, res) => {
     const user = rows[0];
 
     if (!user) {
-      return res.status(401).json({ msg: "用户不存在" });
+      return res.status(401).json({ code: 401, msg: "用户不存在" });
     }
 
     let isMatch = false;

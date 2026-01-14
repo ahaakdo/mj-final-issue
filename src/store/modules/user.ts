@@ -152,6 +152,8 @@ export const useUserStore = defineStore("pure-user", {
       username: string;
       password: string;
       user_type: string;
+      nickname: string;
+      token: string;
     }) {
       return new Promise<any>(resolve => {
         setTimeout(() => {
@@ -159,17 +161,12 @@ export const useUserStore = defineStore("pure-user", {
           const userData = {
             avatar: "",
             username: data.username,
-            nickname:
-              data.user_type === "teacher"
-                ? "教师"
-                : data.user_type === "student"
-                  ? "学生"
-                  : "管理员",
+            nickname: data.nickname,
             user_type: data.user_type, // 使用传入的用户类型，不是根据用户名
             roles: [data.user_type],
             permissions: [],
-            accessToken: "mock-token-" + Date.now(),
-            refreshToken: "mock-refresh-token-" + Date.now(),
+            accessToken: data.token,
+            refreshToken: data.token,
             expires: new Date(Date.now() + 24 * 60 * 60 * 1000)
           };
 
@@ -181,12 +178,7 @@ export const useUserStore = defineStore("pure-user", {
 
           // 立即更新store状态
           this.username = data.username;
-          this.nickname =
-            data.user_type === "teacher"
-              ? "教师"
-              : data.user_type === "student"
-                ? "学生"
-                : "管理员";
+          this.nickname = data.nickname;
           this.user_type = data.user_type; // 确保这个设置
           this.roles = [data.user_type];
           this.avatar = "";
