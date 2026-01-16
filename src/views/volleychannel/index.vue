@@ -1,7 +1,5 @@
 <template>
   <div class="volleychannel-container">
-    <div class="page-header" />
-
     <!-- 圆形头像轮播区 -->
     <div class="avatar-slider-container">
       <div class="avatar-slider-wrapper">
@@ -64,17 +62,6 @@
           <el-icon><ArrowRight /></el-icon>
         </el-button>
       </div>
-
-      <!-- 滑动指示器 -->
-      <div class="slider-indicators">
-        <div
-          v-for="n in Math.ceil(athletes.length / visibleCount)"
-          :key="n"
-          class="indicator"
-          :class="{ active: currentPage === n - 1 }"
-          @click="goToPage(n - 1)"
-        />
-      </div>
     </div>
 
     <!-- 运动员详细信息区域 -->
@@ -110,11 +97,11 @@
           </div>
           <div class="stat-item">
             <span class="stat-label">扣高</span>
-            <span class="stat-value">{{ activeAthlete.spikeHeight }}</span>
+            <span class="stat-value">{{ activeAthlete.spike_height }}</span>
           </div>
           <div class="stat-item">
             <span class="stat-label">摸高</span>
-            <span class="stat-value">{{ activeAthlete.jumpHeight }}</span>
+            <span class="stat-value">{{ activeAthlete.jump_height }}</span>
           </div>
         </div>
       </div>
@@ -137,11 +124,11 @@
             </div>
             <div class="info-item">
               <span class="info-label">入队时间：</span>
-              <span class="info-value">{{ activeAthlete.joinDate }}</span>
+              <span class="info-value">{{ activeAthlete.join_date }}</span>
             </div>
             <div class="info-item">
               <span class="info-label">主要荣誉：</span>
-              <span class="info-value">{{ activeAthlete.majorHonors }}</span>
+              <span class="info-value">{{ activeAthlete.major_honors }}</span>
             </div>
             <div class="info-item">
               <span class="info-label">技术特点：</span>
@@ -215,6 +202,8 @@ import {
   Top,
   Grid
 } from "@element-plus/icons-vue";
+import { getPlayers } from "@/api/volleyChannel";
+import { almostWhole } from "chart.js/helpers";
 
 const router = useRouter();
 const sliderRef = ref<HTMLElement>();
@@ -223,309 +212,15 @@ const currentPage = ref(0);
 const visibleCount = ref(6); // 可见的头像数量
 
 // 运动员数据
-const athletes = ref([
-  {
-    id: 1,
-    name: "朱婷",
-    avatar: "https://via.placeholder.com/120/FF6B6B/FFFFFF?text=朱",
-    image: "https://via.placeholder.com/400x500/FF6B6B/FFFFFF?text=朱婷",
-    height: "198cm",
-    weight: "78kg",
-    age: 29,
-    birthplace: "河南省周口市",
-    position: "主攻",
-    number: "2",
-    isCaptain: true,
-    joinDate: "2013年",
-    majorHonors: "奥运冠军、世界杯MVP",
-    achievements: [
-      "2016年里约奥运会金牌",
-      "2015年世界杯冠军 & MVP",
-      "2019年世界杯冠军 & MVP",
-      "2016年里约奥运会最佳主攻",
-      "2017年大冠军杯冠军",
-      "2018年世锦赛季军",
-      "2018年亚运会冠军"
-    ],
-    jumpHeight: "327cm",
-    spikeHeight: "330cm",
-    highlight: "世界顶级主攻手，进攻力量大、线路多变，一传防守稳定",
-    careerHighlights:
-      "中国女排队长，郎平执教时期的核心球员，带领中国女排重返世界之巅。"
-  },
-  {
-    id: 2,
-    name: "张常宁",
-    avatar: "https://via.placeholder.com/120/4ECDC4/FFFFFF?text=张",
-    image: "https://via.placeholder.com/400x500/4ECDC4/FFFFFF?text=张常宁",
-    height: "195cm",
-    weight: "72kg",
-    age: 28,
-    birthplace: "江苏省常州市",
-    position: "主攻",
-    number: "9",
-    isCaptain: false,
-    joinDate: "2014年",
-    majorHonors: "奥运冠军、世界杯冠军",
-    achievements: [
-      "2016年里约奥运会金牌",
-      "2015年世界杯冠军",
-      "2019年世界杯冠军",
-      "2018年亚运会冠军",
-      "2017年大冠军杯冠军"
-    ],
-    jumpHeight: "320cm",
-    spikeHeight: "325cm",
-    highlight: "技术全面，发球威力大，进攻线路清晰",
-    careerHighlights:
-      "出身排球世家，从沙排转到室内排球，成为中国女排重要得分点。"
-  },
-  {
-    id: 3,
-    name: "袁心玥",
-    avatar: "https://via.placeholder.com/120/45B7D1/FFFFFF?text=袁",
-    image: "https://via.placeholder.com/400x500/45B7D1/FFFFFF?text=袁心玥",
-    height: "201cm",
-    weight: "78kg",
-    age: 27,
-    birthplace: "重庆市",
-    position: "副攻",
-    number: "1",
-    isCaptain: false,
-    joinDate: "2014年",
-    majorHonors: "奥运冠军、世界杯冠军",
-    achievements: [
-      "2016年里约奥运会金牌",
-      "2015年世界杯冠军",
-      "2019年世界杯冠军",
-      "2018年亚运会冠军",
-      "2018年世锦赛季军"
-    ],
-    jumpHeight: "317cm",
-    spikeHeight: "322cm",
-    highlight: "中国女排第一高度，拦网能力强，快攻出色",
-    careerHighlights:
-      "中国女排历史上最高的运动员，16岁入选国家队，迅速成长为世界级副攻。"
-  },
-  {
-    id: 4,
-    name: "龚翔宇",
-    avatar: "https://via.placeholder.com/120/96CEB4/FFFFFF?text=龚",
-    image: "https://via.placeholder.com/400x500/96CEB4/FFFFFF?text=龚翔宇",
-    height: "186cm",
-    weight: "72kg",
-    age: 26,
-    birthplace: "江苏省连云港市",
-    position: "接应",
-    number: "6",
-    isCaptain: false,
-    joinDate: "2016年",
-    majorHonors: "奥运冠军、世界杯冠军",
-    achievements: [
-      "2016年里约奥运会金牌",
-      "2018年亚运会冠军",
-      "2019年世界杯冠军",
-      "2022年世锦赛参赛"
-    ],
-    jumpHeight: "315cm",
-    spikeHeight: "320cm",
-    highlight: "进攻防守均衡，跑动进攻能力强",
-    careerHighlights:
-      "19岁入选国家队并参加奥运会，成为中国女排最年轻的奥运冠军。"
-  },
-  {
-    id: 5,
-    name: "丁霞",
-    avatar: "https://via.placeholder.com/120/FECA57/FFFFFF?text=丁",
-    image: "https://via.placeholder.com/400x500/FECA57/FFFFFF?text=丁霞",
-    height: "180cm",
-    weight: "65kg",
-    age: 33,
-    birthplace: "河北省石家庄市",
-    position: "二传",
-    number: "16",
-    isCaptain: false,
-    joinDate: "2013年",
-    majorHonors: "奥运冠军、世界杯冠军",
-    achievements: [
-      "2016年里约奥运会金牌",
-      "2015年世界杯冠军",
-      "2019年世界杯冠军",
-      "2019年世界杯最佳二传",
-      "2018年亚运会冠军"
-    ],
-    jumpHeight: "305cm",
-    spikeHeight: "310cm",
-    highlight: "传球隐蔽性好，防守顽强，二次球进攻犀利",
-    careerHighlights: "中国女排主力二传，组织能力出色，场上拼劲十足。"
-  },
-  {
-    id: 6,
-    name: "王梦洁",
-    avatar: "https://via.placeholder.com/120/FF9FF3/FFFFFF?text=王",
-    image: "https://via.placeholder.com/400x500/FF9FF3/FFFFFF?text=王梦洁",
-    height: "173cm",
-    weight: "60kg",
-    age: 28,
-    birthplace: "山东省济南市",
-    position: "自由人",
-    number: "18",
-    isCaptain: false,
-    joinDate: "2015年",
-    majorHonors: "世界杯冠军、最佳自由人",
-    achievements: [
-      "2019年世界杯冠军",
-      "2019年世界杯最佳自由人",
-      "2018年亚运会冠军",
-      "2022年世锦赛参赛"
-    ],
-    jumpHeight: "294cm",
-    spikeHeight: "298cm",
-    highlight: "防守面积大，一传稳定，卡位准确",
-    careerHighlights:
-      "中国女排主力自由人，防守能力出色，多次获得最佳自由人奖项。"
-  },
-  {
-    id: 7,
-    name: "李盈莹",
-    avatar: "https://via.placeholder.com/120/54A0FF/FFFFFF?text=李",
-    image: "https://via.placeholder.com/400x500/54A0FF/FFFFFF?text=李盈莹",
-    height: "192cm",
-    weight: "78kg",
-    age: 23,
-    birthplace: "黑龙江省齐齐哈尔市",
-    position: "主攻",
-    number: "12",
-    isCaptain: false,
-    joinDate: "2018年",
-    majorHonors: "世界杯冠军",
-    achievements: [
-      "2019年世界杯冠军",
-      "2021年世界联赛参赛",
-      "2022年世锦赛参赛",
-      "2023年亚运会冠军"
-    ],
-    jumpHeight: "312cm",
-    spikeHeight: "318cm",
-    highlight: "左手进攻，线路刁钻，发球威力大",
-    careerHighlights:
-      "新生代主攻代表，联赛单场得分纪录保持者，中国女排未来核心。"
-  },
-  {
-    id: 8,
-    name: "王媛媛",
-    avatar: "https://via.placeholder.com/120/5F27CD/FFFFFF?text=王",
-    image: "https://via.placeholder.com/400x500/5F27CD/FFFFFF?text=王媛媛",
-    height: "195cm",
-    weight: "75kg",
-    age: 26,
-    birthplace: "甘肃省兰州市",
-    position: "副攻",
-    number: "7",
-    isCaptain: false,
-    joinDate: "2017年",
-    majorHonors: "世界杯冠军",
-    achievements: [
-      "2019年世界杯冠军",
-      "2021年世界联赛参赛",
-      "2022年世锦赛参赛",
-      "2023年亚运会冠军"
-    ],
-    jumpHeight: "315cm",
-    spikeHeight: "320cm",
-    highlight: "拦网手型好，快攻节奏快",
-    careerHighlights: "新生代副攻代表，逐渐成长为袁心玥的最佳搭档。"
-  },
-  {
-    id: 9,
-    name: "姚迪",
-    avatar: "https://via.placeholder.com/120/00D2D3/FFFFFF?text=姚",
-    image: "https://via.placeholder.com/400x500/00D2D3/FFFFFF?text=姚迪",
-    height: "182cm",
-    weight: "65kg",
-    age: 31,
-    birthplace: "天津市",
-    position: "二传",
-    number: "11",
-    isCaptain: false,
-    joinDate: "2013年",
-    majorHonors: "世界杯冠军",
-    achievements: [
-      "2019年世界杯冠军",
-      "2021年世界联赛参赛",
-      "2022年世锦赛参赛"
-    ],
-    jumpHeight: "305cm",
-    spikeHeight: "310cm",
-    highlight: "传球稳定，与攻手配合默契",
-    careerHighlights: "技术型二传，多次入选国家队，经验丰富。"
-  },
-  {
-    id: 10,
-    name: "高意",
-    avatar: "https://via.placeholder.com/120/FF6B6B/FFFFFF?text=高",
-    image: "https://via.placeholder.com/400x500/FF6B6B/FFFFFF?text=高意",
-    height: "194cm",
-    weight: "75kg",
-    age: 25,
-    birthplace: "上海市",
-    position: "副攻",
-    number: "5",
-    isCaptain: false,
-    joinDate: "2017年",
-    majorHonors: "亚运会冠军",
-    achievements: [
-      "2018年亚运会冠军",
-      "2021年世界联赛参赛",
-      "2023年亚运会冠军"
-    ],
-    jumpHeight: "318cm",
-    spikeHeight: "323cm",
-    highlight: "弹跳出众，进攻点高",
-    careerHighlights: "身体条件出色，是中国女排重点培养的年轻副攻。"
-  },
-  {
-    id: 11,
-    name: "刁琳宇",
-    avatar: "https://via.placeholder.com/120/4ECDC4/FFFFFF?text=刁",
-    image: "https://via.placeholder.com/400x500/4ECDC4/FFFFFF?text=刁琳宇",
-    height: "182cm",
-    weight: "65kg",
-    age: 29,
-    birthplace: "江苏省淮安市",
-    position: "二传",
-    number: "3",
-    isCaptain: false,
-    joinDate: "2017年",
-    majorHonors: "世界杯冠军",
-    achievements: ["2019年世界杯冠军", "2022年世锦赛参赛", "2023年亚运会冠军"],
-    jumpHeight: "305cm",
-    spikeHeight: "310cm",
-    highlight: "传球速度快，战术组织灵活",
-    careerHighlights: "技术特点鲜明的二传，擅长组织快攻战术。"
-  },
-  {
-    id: 12,
-    name: "倪非凡",
-    avatar: "https://via.placeholder.com/120/45B7D1/FFFFFF?text=倪",
-    image: "https://via.placeholder.com/400x500/45B7D1/FFFFFF?text=倪非凡",
-    height: "177cm",
-    weight: "62kg",
-    age: 22,
-    birthplace: "江苏省常州市",
-    position: "自由人",
-    number: "15",
-    isCaptain: false,
-    joinDate: "2019年",
-    majorHonors: "世界杯冠军",
-    achievements: ["2019年世界杯冠军", "2022年世锦赛参赛", "2023年亚运会冠军"],
-    jumpHeight: "290cm",
-    spikeHeight: "295cm",
-    highlight: "防守积极，一传到位率高",
-    careerHighlights: "新生代自由人代表，防守能力出色，未来可期。"
-  }
-]);
+const athletes = ref([]);
 
+// 初始化运动员
+const initAthletes = async () => {
+  const res = await getPlayers();
+  console.log(res);
+  athletes.value = res.data;
+};
+initAthletes();
 // 当前选中的运动员
 const activeAthlete = computed(() => {
   return athletes.value[activeIndex.value];
