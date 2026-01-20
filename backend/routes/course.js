@@ -32,10 +32,11 @@ router.get("/", async (req, res) => {
     const [rows] = await db.query(sql);
     const formattedData = rows.map(row => {
       const item = {
-        course: {},
+        course: {
+          status: row.status
+        },
         teacher: {},
-        category: {},
-        status: row.status
+        category: {}
       };
 
       Object.keys(row).forEach(key => {
@@ -59,6 +60,30 @@ router.get("/", async (req, res) => {
   } catch (error) {
     console.error("SQL Error:", error.message);
     res.status(500).json({ code: 500, message: "Internal Server Error" });
+  }
+});
+
+router.get("/categories", async (req, res) => {
+  try {
+    // 执行 SQL 查询获取所有字段
+    const [rows] = await db.query("SELECT * FROM course_categories");
+
+    // 返回标准响应结构
+    res.json({
+      code: 200,
+      data: rows,
+      message: "Success"
+    });
+  } catch (error) {
+    console.error("Fetch course categories error:", error);
+
+    // 错误处理
+    res.status(500).json({
+      code: 500,
+      data: null,
+      message: "Internal Server Error",
+      error: error.message
+    });
   }
 });
 

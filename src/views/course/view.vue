@@ -16,31 +16,15 @@
     <div class="category-navigation">
       <div class="category-tabs">
         <div
+          v-for="item in courseCategories"
+          :key="item.id"
           class="category-tab"
-          :class="{ active: activeCategory === 'spike' }"
-          @click="switchCategory('spike')"
+          :class="{ active: activeCategory === item.id }"
+          @click="switchCategory(item.id)"
         >
           <i class="fas fa-bolt" />
-          <span>扣球训练</span>
-          <span class="course-count">{{ spikeCourses.length }}</span>
-        </div>
-        <div
-          class="category-tab"
-          :class="{ active: activeCategory === 'receive' }"
-          @click="switchCategory('receive')"
-        >
-          <i class="fas fa-hands" />
-          <span>接球训练</span>
-          <span class="course-count">{{ receiveCourses.length }}</span>
-        </div>
-        <div
-          class="category-tab"
-          :class="{ active: activeCategory === 'serve' }"
-          @click="switchCategory('serve')"
-        >
-          <i class="fas fa-baseball-ball" />
-          <span>发球训练</span>
-          <span class="course-count">{{ serveCourses.length }}</span>
+          <span>{{ item.name }}</span>
+          <span class="course-count">1</span>
         </div>
       </div>
     </div>
@@ -58,15 +42,15 @@
       </div>
       <div class="info-stats">
         <div class="stat-item">
-          <span class="stat-value">{{ getActiveCourses().length }}</span>
+          <span class="stat-value">{{ getActiveCourses().course }}</span>
           <span class="stat-label">个课程</span>
         </div>
         <div class="stat-item">
-          <span class="stat-value">{{ getTotalStudents() }}</span>
+          <span class="stat-value">{{ getActiveCourses().people }}</span>
           <span class="stat-label">人学习</span>
         </div>
         <div class="stat-item">
-          <span class="stat-value">{{ getAvailableSeats() }}</span>
+          <span class="stat-value">{{ getActiveCourses().sum }}</span>
           <span class="stat-label">个名额</span>
         </div>
       </div>
@@ -80,12 +64,12 @@
             <el-select
               v-model="filterForm.difficulty"
               placeholder="全部难度"
+              filterable
               clearable
-              @change="applyFilters"
             >
-              <el-option label="初级" value="beginner" />
-              <el-option label="中级" value="intermediate" />
-              <el-option label="高级" value="advanced" />
+              <el-option label="初级" value="1" />
+              <el-option label="中级" value="2" />
+              <el-option label="高级" value="3" />
             </el-select>
           </el-form-item>
 
@@ -94,11 +78,13 @@
               v-model="filterForm.status"
               placeholder="全部状态"
               clearable
-              @change="applyFilters"
+              filterable
             >
-              <el-option label="报名中" value="enrolling" />
-              <el-option label="进行中" value="ongoing" />
-              <el-option label="已结束" value="ended" />
+              <el-option label="未开始报名" value="未开始报名" />
+              <el-option label="开始报名" value="开始报名" />
+              <el-option label="结束报名" value="结束报名" />
+              <el-option label="已开课" value="已开课" />
+              <el-option label="已结课" value="已结课" />
             </el-select>
           </el-form-item>
 
@@ -109,7 +95,6 @@
               range-separator="至"
               start-placeholder="开始日期"
               end-placeholder="结束日期"
-              @change="applyFilters"
             />
           </el-form-item>
 
@@ -119,12 +104,11 @@
               placeholder="选择教师"
               clearable
               filterable
-              @change="applyFilters"
             >
               <el-option
                 v-for="teacher in getCurrentTeachers()"
                 :key="teacher.id"
-                :label="teacher.name"
+                :label="teacher.real_name"
                 :value="teacher.id"
               />
             </el-select>
@@ -135,7 +119,6 @@
               v-model="filterForm.keyword"
               placeholder="课程名称、描述等"
               clearable
-              @input="applyFilters"
             >
               <template #prefix>
                 <i class="fas fa-search" />
@@ -162,21 +145,19 @@
           <i class="fas fa-seedling" />
         </div>
         <div class="card-content">
-          <span class="card-value">{{ getDifficultyCount("beginner") }}</span>
+          <span class="card-value">{{ getDifficultyCount(1) }}</span>
           <span class="card-label">初级课程</span>
         </div>
       </div>
-
       <div class="stats-card">
         <div class="card-icon enrolling">
           <i class="fas fa-user-plus" />
         </div>
         <div class="card-content">
-          <span class="card-value">{{ getStatusCount("enrolling") }}</span>
+          <span class="card-value">{{ getStatusCount("开始报名") }}</span>
           <span class="card-label">可报名课程</span>
         </div>
       </div>
-
       <div class="stats-card">
         <div class="card-icon teacher">
           <i class="fas fa-chalkboard-teacher" />
@@ -186,7 +167,6 @@
           <span class="card-label">授课教师</span>
         </div>
       </div>
-
       <div class="stats-card">
         <div class="card-icon seats">
           <i class="fas fa-chair" />
@@ -206,27 +186,25 @@
           {{ getCategoryTitle(activeCategory) }}课程
           <span class="courses-count">({{ filteredCourses.length }})</span>
         </h2>
-        <div class="sort-controls">
-          <el-select
-            v-model="sortOption"
-            placeholder="排序方式"
-            size="small"
-            @change="sortCourses"
-          >
-            <el-option label="最新课程" value="newest" />
-            <el-option label="最早上课" value="earliest" />
-            <el-option label="评分最高" value="rating" />
-            <el-option label="剩余名额" value="seats" />
-            <el-option label="课程热度" value="popularity" />
-          </el-select>
-        </div>
+<!--        <div class="sort-controls">-->
+<!--          <el-select-->
+<!--            v-model="sortOption"-->
+<!--            placeholder="排序方式"-->
+<!--            size="small"-->
+<!--            @change="sortCourses"-->
+<!--          >-->
+<!--            <el-option label="最新课程" value="newest" />-->
+<!--            <el-option label="最早上课" value="earliest" />-->
+<!--            <el-option label="评分最高" value="rating" />-->
+<!--            <el-option label="剩余名额" value="seats" />-->
+<!--            <el-option label="课程热度" value="popularity" />-->
+<!--          </el-select>-->
+<!--        </div>-->
       </div>
-
       <div v-if="loading" class="loading-spinner">
         <i class="fas fa-spinner fa-spin" />
         加载中...
       </div>
-
       <div v-else-if="filteredCourses.length === 0" class="empty-state">
         <i class="fas fa-search" />
         <h3>未找到相关课程</h3>
@@ -234,11 +212,7 @@
         <el-button type="primary" @click="resetFilters">
           重置筛选条件
         </el-button>
-        <el-button @click="switchCategory(getOtherCategory())">
-          查看{{ getOtherCategoryName() }}课程
-        </el-button>
       </div>
-
       <div v-else class="courses-grid">
         <div
           v-for="course in paginatedCourses"
@@ -249,7 +223,7 @@
           <!-- 课程角标 -->
           <div class="course-badges">
             <el-tag
-              v-if="course.is_featured"
+              v-if="course.recommend >= 4"
               type="danger"
               size="small"
               effect="dark"
@@ -266,12 +240,11 @@
               {{ getStatusText(course.status) }}
             </el-tag>
           </div>
-
           <!-- 课程封面 -->
           <div class="course-cover" @click="viewCourseDetail(course.id)">
             <div class="cover-overlay">
               <div class="cover-info">
-                <span class="course-code">{{ course.course_code }}</span>
+                <span class="course-code">{{ course.id }}-X2026</span>
                 <span class="course-credits">
                   <i class="fas fa-star" /> {{ course.credits }}学分
                 </span>
@@ -281,31 +254,27 @@
               <i :class="getCourseTypeIcon(course.course_type)" />
             </div>
           </div>
-
           <!-- 课程内容 -->
           <div class="course-content">
             <h3 class="course-title" @click="viewCourseDetail(course.id)">
               {{ course.course_name }}
             </h3>
-
             <p class="course-description">
               {{ truncateText(course.description, 60) }}
             </p>
-
             <!-- 课程评分 -->
-            <div v-if="course.rating" class="course-rating">
+            <div v-if="course.recommend" class="course-rating">
               <div class="rating-stars">
                 <i
                   v-for="n in 5"
                   :key="n"
                   class="fas fa-star"
-                  :class="{ active: n <= Math.round(course.rating) }"
+                  :class="{ active: n <= Math.round(course.recommend) }"
                 />
               </div>
-              <span class="rating-value">{{ course.rating.toFixed(1) }}</span>
+              <span class="rating-value">{{ course.recommend }}</span>
               <span class="rating-count">({{ course.review_count }}评价)</span>
             </div>
-
             <!-- 教师信息 -->
             <div class="course-teacher">
               <div class="teacher-avatar">
@@ -317,22 +286,18 @@
                 <i v-else class="fas fa-user-circle" />
               </div>
               <div class="teacher-info">
-                <div class="teacher-name">{{ course.teacher_name }}</div>
-                <div class="teacher-title">{{ course.teacher_title }}</div>
-                <div
-                  v-if="course.teacher_experience"
-                  class="teacher-experience"
-                >
-                  教龄{{ course.teacher_experience }}年
+                <div class="teacher-name">{{ course.teacher_real_name }}</div>
+                <div class="teacher-title">{{ course.teacher_position }}</div>
+                <div v-if="course.teaching_year" class="teacher-experience">
+                  教龄{{ course.teaching_year }}年
                 </div>
               </div>
             </div>
-
             <!-- 课程详情 -->
             <div class="course-details">
               <div class="detail-item">
                 <i class="fas fa-calendar-alt" />
-                <span>{{ formatDate(course.start_date) }} 开课</span>
+                <span>{{ formatDate(course.study_date) }} 开课</span>
               </div>
               <div class="detail-item">
                 <i class="fas fa-clock" />
@@ -344,7 +309,7 @@
               </div>
               <div class="detail-item">
                 <i class="fas fa-users" />
-                <span>
+                <div style="width: 100%">
                   {{ course.current_students }}/{{ course.capacity }}人
                   <el-progress
                     :percentage="getCapacityPercentage(course)"
@@ -352,26 +317,24 @@
                     :stroke-width="6"
                     :color="getCapacityColor(course)"
                   />
-                </span>
+                </div>
               </div>
             </div>
-
             <!-- 课程标签 -->
             <div class="course-tags">
               <el-tag
-                v-for="tag in course.tags"
+                v-for="tag in course.tags?.split(',')"
                 :key="tag"
-                size="mini"
-                type="info"
+                size="small"
+                type="primary"
               >
                 {{ tag }}
               </el-tag>
             </div>
-
             <!-- 操作按钮 -->
             <div class="course-actions">
               <el-button
-                v-if="course.status === 'enrolling'"
+                v-if="course.status === '开始报名'"
                 type="primary"
                 size="small"
                 :disabled="course.current_students >= course.capacity"
@@ -384,16 +347,8 @@
                     : "立即报名"
                 }}
               </el-button>
-              <el-button
-                v-else-if="course.status === 'ongoing'"
-                type="info"
-                size="small"
-                disabled
-              >
-                进行中
-              </el-button>
-              <el-button v-else type="default" size="small" disabled>
-                已结束
+              <el-button v-else type="info" size="small" disabled>
+                {{ course.status }}
               </el-button>
               <el-button
                 type="default"
@@ -471,7 +426,7 @@
               </span>
               <span class="meta-item">
                 <i class="fas fa-star" />
-                {{ course.rating.toFixed(1) }}
+                {{ course.recommend }}(评价)
               </span>
             </div>
             <p class="recommended-description">
@@ -491,120 +446,13 @@
         </div>
       </div>
     </div>
-
-    <!-- 分类对比 -->
-    <div class="category-comparison">
-      <div class="section-header">
-        <h2 class="section-title">
-          <i class="fas fa-chart-bar" />
-          课程分类对比
-        </h2>
-      </div>
-      <div class="comparison-grid">
-        <div
-          class="comparison-card"
-          :class="{ active: activeCategory === 'spike' }"
-          @click="switchCategory('spike')"
-        >
-          <div class="comparison-icon spike">
-            <i class="fas fa-bolt" />
-          </div>
-          <h3 class="comparison-title">扣球训练</h3>
-          <div class="comparison-stats">
-            <div class="stat">
-              <span class="stat-value">{{ spikeCourses.length }}</span>
-              <span class="stat-label">个课程</span>
-            </div>
-            <div class="stat">
-              <span class="stat-value">{{
-                getCategoryTotalStudents("spike")
-              }}</span>
-              <span class="stat-label">人学习</span>
-            </div>
-            <div class="stat">
-              <span class="stat-value">{{
-                getCategoryAvgRating("spike")
-              }}</span>
-              <span class="stat-label">平均分</span>
-            </div>
-          </div>
-          <p class="comparison-desc">
-            学习扣球的基本姿势、起跳时机和击球点，提升攻击力
-          </p>
-        </div>
-
-        <div
-          class="comparison-card"
-          :class="{ active: activeCategory === 'receive' }"
-          @click="switchCategory('receive')"
-        >
-          <div class="comparison-icon receive">
-            <i class="fas fa-hands" />
-          </div>
-          <h3 class="comparison-title">接球训练</h3>
-          <div class="comparison-stats">
-            <div class="stat">
-              <span class="stat-value">{{ receiveCourses.length }}</span>
-              <span class="stat-label">个课程</span>
-            </div>
-            <div class="stat">
-              <span class="stat-value">{{
-                getCategoryTotalStudents("receive")
-              }}</span>
-              <span class="stat-label">人学习</span>
-            </div>
-            <div class="stat">
-              <span class="stat-value">{{
-                getCategoryAvgRating("receive")
-              }}</span>
-              <span class="stat-label">平均分</span>
-            </div>
-          </div>
-          <p class="comparison-desc">
-            掌握接球的基本姿势、移动步法和手感，提高防守稳定性
-          </p>
-        </div>
-
-        <div
-          class="comparison-card"
-          :class="{ active: activeCategory === 'serve' }"
-          @click="switchCategory('serve')"
-        >
-          <div class="comparison-icon serve">
-            <i class="fas fa-baseball-ball" />
-          </div>
-          <h3 class="comparison-title">发球训练</h3>
-          <div class="comparison-stats">
-            <div class="stat">
-              <span class="stat-value">{{ serveCourses.length }}</span>
-              <span class="stat-label">个课程</span>
-            </div>
-            <div class="stat">
-              <span class="stat-value">{{
-                getCategoryTotalStudents("serve")
-              }}</span>
-              <span class="stat-label">人学习</span>
-            </div>
-            <div class="stat">
-              <span class="stat-value">{{
-                getCategoryAvgRating("serve")
-              }}</span>
-              <span class="stat-label">平均分</span>
-            </div>
-          </div>
-          <p class="comparison-desc">
-            学习发球的基本姿势、手型和用力技巧，提升攻击性和稳定性
-          </p>
-        </div>
-      </div>
-    </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted } from "vue";
+import { computed, onMounted, reactive, ref } from "vue";
 import { ElMessage, ElMessageBox } from "element-plus";
-import type { FormInstance } from "element-plus";
+import { getCourseCategory, getCourses } from "@/api/courses";
 
 // ---------------------- 类型定义 ----------------------
 interface Teacher {
@@ -648,13 +496,13 @@ interface Course {
 }
 
 // ---------------------- 数据状态 ----------------------
-const activeCategory = ref<"spike" | "receive" | "serve">("serve");
+const activeCategory = ref<any>(1);
 const loading = ref(false);
 
 // ---------------------- 筛选表单 ----------------------
 const filterForm = reactive({
-  difficulty: "" as "" | "beginner" | "intermediate" | "advanced",
-  status: "" as "" | "enrolling" | "ongoing" | "ended",
+  difficulty: null as null | "beginner" | "intermediate" | "advanced",
+  status: null as null | "enrolling" | "ongoing" | "ended",
   dateRange: [] as string[],
   teacherId: null as number | null,
   keyword: ""
@@ -670,374 +518,87 @@ const pagination = reactive({
   total: 0
 });
 
-// ---------------------- 模拟数据 ----------------------
-// 所有教师数据
-const teachers = ref<Teacher[]>([
-  {
-    id: 1,
-    name: "李教练",
-    title: "国家级教练",
-    experience: 15,
-    department: "体育学院"
-  },
-  {
-    id: 2,
-    name: "王教练",
-    title: "高级教练",
-    experience: 10,
-    department: "运动训练系"
-  },
-  {
-    id: 3,
-    name: "张教练",
-    title: "特级教练",
-    experience: 20,
-    department: "专业训练中心"
-  },
-  {
-    id: 4,
-    name: "刘教练",
-    title: "中级教练",
-    experience: 8,
-    department: "体育学院"
-  },
-  {
-    id: 5,
-    name: "陈教练",
-    title: "高级教练",
-    experience: 12,
-    department: "运动训练系"
-  },
-  {
-    id: 6,
-    name: "赵教练",
-    title: "国家级教练",
-    experience: 18,
-    department: "专业训练中心"
-  }
-]);
-
-// 发球课程数据
-const serveCourses = ref<Course[]>([
-  {
-    id: 1,
-    course_code: "SV101",
-    course_name: "基础发球入门",
-    course_type: "serve",
-    description: "学习发球的基本姿势、手型和用力技巧，适合零基础学员",
-    difficulty: "beginner",
-    status: "enrolling",
-    category_id: 3,
-    teacher_id: 1,
-    teacher_name: "李教练",
-    teacher_title: "国家级教练",
-    teacher_experience: 15,
-    teacher_department: "体育学院",
-    credits: 1,
-    capacity: 20,
-    current_students: 12,
-    location: "排球馆A区",
-    schedule: "每周一、三 14:00-16:00",
-    start_date: "2024-02-15",
-    end_date: "2024-06-15",
-    rating: 4.5,
-    review_count: 28,
-    tags: ["基础", "入门", "技巧"],
-    is_featured: true,
-    is_favorite: false,
-    created_at: "2024-01-10",
-    updated_at: "2024-01-10"
-  },
-  {
-    id: 2,
-    course_code: "SV201",
-    course_name: "强力跳发球训练",
-    course_type: "serve",
-    description: "掌握跳发球的起跳时机、击球点和力量控制，提升攻击性",
-    difficulty: "intermediate",
-    status: "enrolling",
-    category_id: 3,
-    teacher_id: 2,
-    teacher_name: "王教练",
-    teacher_title: "高级教练",
-    teacher_experience: 10,
-    teacher_department: "运动训练系",
-    credits: 2,
-    capacity: 15,
-    current_students: 10,
-    location: "排球馆B区",
-    schedule: "每周二、四 16:00-18:00",
-    start_date: "2024-03-01",
-    end_date: "2024-07-01",
-    rating: 4.8,
-    review_count: 45,
-    tags: ["跳发", "强力", "攻击"],
-    is_featured: true,
-    is_favorite: true,
-    created_at: "2024-01-05",
-    updated_at: "2024-01-05"
-  },
-  {
-    id: 3,
-    course_code: "SV301",
-    course_name: "精准飘球与旋转球",
-    course_type: "serve",
-    description: "高级发球技巧训练，包括飘球的控制和旋转球的变化",
-    difficulty: "advanced",
-    status: "ongoing",
-    category_id: 3,
-    teacher_id: 3,
-    teacher_name: "张教练",
-    teacher_title: "特级教练",
-    teacher_experience: 20,
-    teacher_department: "专业训练中心",
-    credits: 3,
-    capacity: 10,
-    current_students: 8,
-    location: "专业训练馆",
-    schedule: "每周五 19:00-21:00",
-    start_date: "2024-01-20",
-    end_date: "2024-05-20",
-    rating: 4.9,
-    review_count: 32,
-    tags: ["飘球", "旋转", "精准"],
-    is_featured: false,
-    is_favorite: false,
-    created_at: "2023-12-15",
-    updated_at: "2023-12-15"
-  }
-]);
-
-// 接球课程数据
-const receiveCourses = ref<Course[]>([
-  {
-    id: 4,
-    course_code: "RC101",
-    course_name: "基础接球入门",
-    course_type: "receive",
-    description: "学习接球的基本姿势、手型和移动步法，建立正确的手感",
-    difficulty: "beginner",
-    status: "enrolling",
-    category_id: 2,
-    teacher_id: 4,
-    teacher_name: "刘教练",
-    teacher_title: "中级教练",
-    teacher_experience: 8,
-    teacher_department: "体育学院",
-    credits: 1,
-    capacity: 25,
-    current_students: 18,
-    location: "排球馆C区",
-    schedule: "每周一、四 09:00-11:00",
-    start_date: "2024-02-20",
-    end_date: "2024-06-20",
-    rating: 4.3,
-    review_count: 22,
-    tags: ["基础", "防守", "稳定性"],
-    is_featured: true,
-    is_favorite: false,
-    created_at: "2024-01-08",
-    updated_at: "2024-01-08"
-  },
-  {
-    id: 5,
-    course_code: "RC201",
-    course_name: "一传稳定性训练",
-    course_type: "receive",
-    description: "提高一传成功率，培养稳定的接发球能力",
-    difficulty: "intermediate",
-    status: "enrolling",
-    category_id: 2,
-    teacher_id: 5,
-    teacher_name: "陈教练",
-    teacher_title: "高级教练",
-    teacher_experience: 12,
-    teacher_department: "运动训练系",
-    credits: 2,
-    capacity: 18,
-    current_students: 15,
-    location: "排球馆D区",
-    schedule: "每周二、五 14:00-16:00",
-    start_date: "2024-03-05",
-    end_date: "2024-07-05",
-    rating: 4.6,
-    review_count: 35,
-    tags: ["一传", "稳定性", "精准"],
-    is_featured: false,
-    is_favorite: true,
-    created_at: "2024-01-12",
-    updated_at: "2024-01-12"
-  },
-  {
-    id: 6,
-    course_code: "RC301",
-    course_name: "防守移动与扑救",
-    course_type: "receive",
-    description: "高级防守技巧训练，学习快速移动和极限扑救",
-    difficulty: "advanced",
-    status: "ongoing",
-    category_id: 2,
-    teacher_id: 6,
-    teacher_name: "赵教练",
-    teacher_title: "国家级教练",
-    teacher_experience: 18,
-    teacher_department: "专业训练中心",
-    credits: 3,
-    capacity: 12,
-    current_students: 10,
-    location: "专业训练馆",
-    schedule: "每周三 19:00-21:00",
-    start_date: "2024-01-25",
-    end_date: "2024-05-25",
-    rating: 4.7,
-    review_count: 28,
-    tags: ["防守", "移动", "扑救"],
-    is_featured: true,
-    is_favorite: false,
-    created_at: "2023-12-20",
-    updated_at: "2023-12-20"
-  }
-]);
-
-// 扣球课程数据
-const spikeCourses = ref<Course[]>([
-  {
-    id: 7,
-    course_code: "SP101",
-    course_name: "基础扣球入门",
-    course_type: "spike",
-    description: "学习扣球的基本姿势、起跳时机和击球点",
-    difficulty: "beginner",
-    status: "enrolling",
-    category_id: 1,
-    teacher_id: 2,
-    teacher_name: "王教练",
-    teacher_title: "高级教练",
-    teacher_experience: 10,
-    teacher_department: "运动训练系",
-    credits: 1,
-    capacity: 20,
-    current_students: 16,
-    location: "排球馆E区",
-    schedule: "每周二、四 10:00-12:00",
-    start_date: "2024-02-25",
-    end_date: "2024-06-25",
-    rating: 4.4,
-    review_count: 31,
-    tags: ["基础", "扣球", "入门"],
-    is_featured: false,
-    is_favorite: false,
-    created_at: "2024-01-15",
-    updated_at: "2024-01-15"
-  },
-  {
-    id: 8,
-    course_code: "SP201",
-    course_name: "强力扣球训练",
-    course_type: "spike",
-    description: "掌握扣球的发力技巧，提升扣球力量和速度",
-    difficulty: "intermediate",
-    status: "enrolling",
-    category_id: 1,
-    teacher_id: 3,
-    teacher_name: "张教练",
-    teacher_title: "特级教练",
-    teacher_experience: 20,
-    teacher_department: "专业训练中心",
-    credits: 2,
-    capacity: 15,
-    current_students: 12,
-    location: "排球馆F区",
-    schedule: "每周一、三 16:00-18:00",
-    start_date: "2024-03-10",
-    end_date: "2024-07-10",
-    rating: 4.8,
-    review_count: 42,
-    tags: ["强力", "速度", "力量"],
-    is_featured: true,
-    is_favorite: true,
-    created_at: "2024-01-18",
-    updated_at: "2024-01-18"
-  },
-  {
-    id: 9,
-    course_code: "SP301",
-    course_name: "战术扣球与线路变化",
-    course_type: "spike",
-    description: "高级扣球技巧训练，学习战术配合和线路变化",
-    difficulty: "advanced",
-    status: "ongoing",
-    category_id: 1,
-    teacher_id: 1,
-    teacher_name: "李教练",
-    teacher_title: "国家级教练",
-    teacher_experience: 15,
-    teacher_department: "体育学院",
-    credits: 3,
-    capacity: 10,
-    current_students: 9,
-    location: "专业训练馆",
-    schedule: "每周五 14:00-16:00",
-    start_date: "2024-01-30",
-    end_date: "2024-05-30",
-    rating: 4.9,
-    review_count: 25,
-    tags: ["战术", "线路", "变化"],
-    is_featured: true,
-    is_favorite: false,
-    created_at: "2023-12-25",
-    updated_at: "2023-12-25"
-  }
-]);
+const courseCategories = ref<any>([]);
+const courseItem = ref([]);
+const initCourses = async () => {
+  const cate = await getCourseCategory();
+  const res = await getCourses();
+  courseCategories.value = cate.data;
+  courseItem.value = res.data;
+  console.log(res, cate.data);
+};
+initCourses();
 
 // ---------------------- 计算属性 ----------------------
 // 当前激活的分类数据
 const activeCategoryData = computed(() => {
-  return {
-    spike: { title: "扣球训练", description: "专业扣球技巧训练" },
-    receive: { title: "接球训练", description: "防守接球技巧训练" },
-    serve: { title: "发球训练", description: "发球攻击性训练" }
-  }[activeCategory.value];
+  return courseCategories.value[activeCategory.value - 1];
 });
 
 // 获取当前分类的课程
 const getActiveCourses = () => {
-  switch (activeCategory.value) {
-    case "spike":
-      return spikeCourses.value;
-    case "receive":
-      return receiveCourses.value;
-    case "serve":
-      return serveCourses.value;
-    default:
-      return [];
-  }
+  const courseDetail = {
+    course: 0,
+    people: 0,
+    sum: 0,
+    courseList: [],
+    teacherList: []
+  };
+  courseItem.value.forEach(item => {
+    if (item.category.id === activeCategory.value) {
+      courseDetail.course++;
+      courseDetail.people += item.course.current_students;
+      courseDetail.sum += item.course.capacity;
+      courseDetail.courseList.push(item.course);
+      courseDetail.courseList[
+        courseDetail.courseList.length - 1
+      ].teacher_real_name = item.teacher.real_name;
+      courseDetail.courseList[
+        courseDetail.courseList.length - 1
+      ].teacher_position = item.teacher.teacher_position;
+      courseDetail.courseList[
+        courseDetail.courseList.length - 1
+      ].teaching_year = item.teacher.teaching_year;
+      courseDetail.courseList[
+        courseDetail.courseList.length - 1
+      ].teacher_avatar = item.teacher.teacher_avatar;
+      courseDetail.courseList[
+        courseDetail.courseList.length - 1
+      ].teacher_introduction = item.teacher.teacher_introduction;
+      courseDetail.courseList[courseDetail.courseList.length - 1].teacher_id =
+        item.teacher.id;
+      courseDetail.courseList[courseDetail.courseList.length - 1].course_type =
+        item.category.id;
+    }
+  });
+  return courseDetail;
 };
 
 // 获取当前分类的特色课程
 const featuredCourses = computed(() => {
-  return getActiveCourses().filter(
-    course => course.is_featured && course.status === "enrolling"
+  return filteredCourses.value.filter(
+    course => Number(course.recommend) >= 4 && course.status === "开始报名"
   );
 });
 
 // 获取当前分类的教师列表
 const getCurrentTeachers = () => {
-  const activeCourses = getActiveCourses();
-  const teacherIds = [
-    ...new Set(activeCourses.map(course => course.teacher_id))
+  return [
+    ...new Set(
+      courseItem.value
+        .filter(item => item.category.id === activeCategory.value)
+        .map(item => item.teacher)
+    )
   ];
-  return teachers.value.filter(teacher => teacherIds.includes(teacher.id));
 };
 
 // 筛选后的课程
 const filteredCourses = computed(() => {
-  let filtered = [...getActiveCourses()];
-
+  let filtered = [...getActiveCourses().courseList];
   // 按难度筛选
   if (filterForm.difficulty) {
     filtered = filtered.filter(
-      course => course.difficulty === filterForm.difficulty
+      course => course.difficulty == filterForm.difficulty
     );
   }
 
@@ -1049,7 +610,7 @@ const filteredCourses = computed(() => {
   // 按日期筛选
   if (filterForm.dateRange && filterForm.dateRange.length === 2) {
     filtered = filtered.filter(course => {
-      const startDate = new Date(course.start_date);
+      const startDate = new Date(course.study_date);
       const rangeStart = new Date(filterForm.dateRange[0]);
       const rangeEnd = new Date(filterForm.dateRange[1]);
       return startDate >= rangeStart && startDate <= rangeEnd;
@@ -1070,10 +631,9 @@ const filteredCourses = computed(() => {
       course =>
         course.course_name.toLowerCase().includes(keyword) ||
         course.description.toLowerCase().includes(keyword) ||
-        course.tags.some(tag => tag.toLowerCase().includes(keyword))
+        course.tags?.toLowerCase().includes(keyword)
     );
   }
-
   return filtered;
 });
 
@@ -1094,22 +654,12 @@ const getCategoryIcon = (category: string) => {
   return icons[category] || "fas fa-volleyball-ball";
 };
 
-const getCategoryTitle = (category: string) => {
-  const titles: Record<string, string> = {
-    spike: "扣球训练",
-    receive: "接球训练",
-    serve: "发球训练"
-  };
-  return titles[category] || "课程";
+const getCategoryTitle = (category: number) => {
+  return courseCategories.value[category - 1]?.name || "课程";
 };
 
-const getCategoryDescription = (category: string) => {
-  const descriptions: Record<string, string> = {
-    spike: "专业扣球技巧训练，提升你的攻击力和得分能力",
-    receive: "防守接球技巧训练，提高防守稳定性和反应速度",
-    serve: "发球攻击性训练，增强发球的稳定性和攻击性"
-  };
-  return descriptions[category] || "排球训练课程";
+const getCategoryDescription = (category: number) => {
+  return courseCategories.value[category - 1].description || "排球训练课程";
 };
 
 const getCourseTypeIcon = (type: string) => {
@@ -1122,18 +672,18 @@ const getCourseTypeText = (type: string) => {
 
 const getDifficultyText = (difficulty: string) => {
   const map: Record<string, string> = {
-    beginner: "初级",
-    intermediate: "中级",
-    advanced: "高级"
+    1: "初级",
+    2: "中级",
+    3: "高级"
   };
   return map[difficulty] || difficulty;
 };
 
 const getDifficultyTagType = (difficulty: string) => {
   const map: Record<string, string> = {
-    beginner: "success",
-    intermediate: "warning",
-    advanced: "danger"
+    1: "success",
+    2: "warning",
+    3: "danger"
   };
   return map[difficulty] || "info";
 };
@@ -1149,10 +699,10 @@ const getStatusText = (status: string) => {
 };
 
 const getStatusTagType = (status: string) => {
-  const map: Record<string, string> = {
-    enrolling: "success",
-    ongoing: "primary",
-    ended: "info"
+  const map: any = {
+    开始报名: "success",
+    已开课: "primary",
+    已结课: "danger"
   };
   return map[status] || "info";
 };
@@ -1179,22 +729,8 @@ const getCapacityColor = (course: Course) => {
   return "#67c23a";
 };
 
-// 统计函数
-const getTotalStudents = () => {
-  return getActiveCourses().reduce(
-    (sum, course) => sum + course.current_students,
-    0
-  );
-};
-
-const getAvailableSeats = () => {
-  return getActiveCourses().reduce(
-    (sum, course) => sum + (course.capacity - course.current_students),
-    0
-  );
-};
-
-const getDifficultyCount = (difficulty: string) => {
+const getDifficultyCount = (difficulty: number) => {
+  console.log(filteredCourses.value);
   return filteredCourses.value.filter(
     course => course.difficulty === difficulty
   ).length;
@@ -1213,46 +749,16 @@ const getUniqueTeacherCount = () => {
 };
 
 const getAvailableSeatsCount = () => {
-  return filteredCourses.value.reduce(
-    (sum, course) => sum + (course.capacity - course.current_students),
-    0
-  );
-};
-
-const getCategoryTotalStudents = (category: string) => {
-  const courses =
-    category === "spike"
-      ? spikeCourses.value
-      : category === "receive"
-        ? receiveCourses.value
-        : serveCourses.value;
-  return courses.reduce((sum, course) => sum + course.current_students, 0);
-};
-
-const getCategoryAvgRating = (category: string) => {
-  const courses =
-    category === "spike"
-      ? spikeCourses.value
-      : category === "receive"
-        ? receiveCourses.value
-        : serveCourses.value;
-  if (courses.length === 0) return 0;
-  const total = courses.reduce((sum, course) => sum + course.rating, 0);
-  return (total / courses.length).toFixed(1);
-};
-
-const getOtherCategory = () => {
-  const categories = ["spike", "receive", "serve"];
-  const currentIndex = categories.indexOf(activeCategory.value);
-  return categories[(currentIndex + 1) % categories.length];
-};
-
-const getOtherCategoryName = () => {
-  return getCategoryTitle(getOtherCategory());
+  return filteredCourses.value
+    .filter(item => item.status === "开始报名")
+    .reduce(
+      (sum, course) => sum + (course.capacity - course.current_students),
+      0
+    );
 };
 
 // ---------------------- 事件处理函数 ----------------------
-const switchCategory = (category: "spike" | "receive" | "serve") => {
+const switchCategory = (category: any) => {
   activeCategory.value = category;
   resetFilters();
   pagination.currentPage = 1;
@@ -1261,13 +767,13 @@ const switchCategory = (category: "spike" | "receive" | "serve") => {
 
 const applyFilters = () => {
   pagination.currentPage = 1;
-  ElMessage.success(`找到 ${filteredCourses.value.length} 门课程`);
+  ElMessage.success(`筛选成功`);
 };
 
 const resetFilters = () => {
   Object.assign(filterForm, {
-    difficulty: "",
-    status: "",
+    difficulty: null,
+    status: null,
     dateRange: [],
     teacherId: null,
     keyword: ""
@@ -1278,6 +784,7 @@ const resetFilters = () => {
 
 const sortCourses = (option: string) => {
   // 这里可以实现具体的排序逻辑
+
   ElMessage.info(
     `已按${option === "newest" ? "最新课程" : option === "rating" ? "评分最高" : option}排序`
   );
@@ -1779,7 +1286,7 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   justify-content: flex-end;
-  padding: 15px;
+  padding: 10px;
 }
 
 .cover-info {
@@ -1851,7 +1358,7 @@ onMounted(() => {
   font-size: 14px;
   line-height: 1.5;
   margin-bottom: 15px;
-  min-height: 42px;
+  height: auto;
 }
 
 /* 课程评分 */
@@ -1960,7 +1467,6 @@ onMounted(() => {
 
   :deep(.el-progress) {
     flex: 1;
-    margin-left: 10px;
   }
 }
 
