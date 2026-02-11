@@ -367,16 +367,16 @@
           <div class="courses-review-list">
             <div
               v-for="(course, index) in selectedCourses"
-              :key="course.id"
+              :key="course.course.id"
               class="review-course-item"
             >
               <div class="review-index">{{ index + 1 }}</div>
               <div class="review-course-info">
-                <div class="review-course-name">{{ course.course_name }}</div>
+                <div class="review-course-name">{{ course.course.course_name }}</div>
                 <div class="review-course-details">
-                  <span>{{ course.teacher_name }}</span>
-                  <span>{{ course.schedule }}</span>
-                  <span>{{ course.credits }}学分</span>
+                  <span>{{ course.teacher.real_name }}</span>
+                  <span>{{ course.course.schedule }}</span>
+                  <span>{{ course.course.credits }}学分</span>
                 </div>
               </div>
               <div class="review-course-status">
@@ -396,9 +396,8 @@
           >
             <el-form-item label="申请类型" prop="apply_type">
               <el-radio-group v-model="applicationForm.apply_type">
-                <el-radio label="select">选课申请</el-radio>
-                <el-radio label="adjust">课程调整</el-radio>
-                <el-radio label="withdraw">退课申请</el-radio>
+                <el-radio label="0">选课申请</el-radio>
+                <el-radio label="1">退课申请</el-radio>
               </el-radio-group>
             </el-form-item>
 
@@ -1012,7 +1011,7 @@ import {
   type UploadFiles
 } from "element-plus";
 import type { FormRules } from "element-plus";
-import { getCourses } from "@/api/courses";
+import { getCourses, applyCourse, withdrawCourses } from "@/api/courses";
 
 // ---------------------- 类型定义 ----------------------
 interface Course {
@@ -1187,12 +1186,12 @@ const applicationFilter = reactive({
 // ---------------------- 表单 ----------------------
 const applicationFormRef = ref<FormInstance>();
 const applicationForm = reactive({
-  apply_type: "select" as "select" | "withdraw" | "adjust",
+  apply_type: "0" as "1" | "0",
   apply_reason: "",
   priority: 1,
   preferred_time: [] as string[],
   special_requirements: "",
-  emergency_contact: "",
+  emergency_email: "",
   emergency_phone: "",
   attachments: [] as UploadFile[]
 });
@@ -1637,14 +1636,39 @@ const handleAttachmentRemove = (file: UploadFile, fileList: UploadFiles) => {
 
 const submitApplication = async () => {
   if (!applicationFormRef.value) return;
-
+  console.log(applicationForm);
   try {
     await applicationFormRef.value.validate();
 
     submittingApplication.value = true;
 
     // 模拟提交过程
-    await new Promise(resolve => setTimeout(resolve, 1500));
+    if (applicationForm.apply_type === "0") {
+      await applyCourse({
+        username: JSON.parse(localStorage.getItem("user-info")).username,
+        course_id: selectedCourses.value.map(course => {
+          return course.course.id;
+        }),
+        application_type: 0,
+        apply_reason: applicationForm.apply_reason,
+        urgent: applicationForm.priority,
+        special_message: applicationForm.special_requirements,
+        phone: applicationForm.emergency_phone,
+        email: applicationForm.emergency_email,
+        material: applicationForm.attachments
+      });
+    } else {
+      await withdrawCourses({
+        username: JSON.parse(localStorage.getItem("user-info")).username,
+        course_id: selectedCourses.value.map(course => {
+          return course.course.id;
+        }),
+        withdraw_reason: applicationForm.apply_reason,
+        urgent: applicationForm.priority,
+        expire_time: applicationForm.preferred_time,
+        material: applicationForm.attachments
+      });
+    }
 
     // 生成新的申请记录
     const newApplication: Application = {
