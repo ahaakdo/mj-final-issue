@@ -50,7 +50,7 @@
         <div class="selection-stats">
           <span class="stat-item">
             <i class="fas fa-book" />
-            可选课程：<strong>{{ availableCourses.length }}</strong
+            可选课程：<strong>{{ filteredAvailableCourses.length }}</strong
             >门
           </span>
           <span class="stat-item">
@@ -74,11 +74,13 @@
               v-model="selectionFilter.category"
               placeholder="全部分类"
               clearable
+              style="width: 200px"
               @change="filterAvailableCourses"
             >
-              <el-option label="扣球训练" value="spike" />
-              <el-option label="接球训练" value="receive" />
-              <el-option label="发球训练" value="serve" />
+              <el-option label="扣球训练" value="1" />
+              <el-option label="接球训练" value="2" />
+              <el-option label="发球训练" value="3" />
+              <el-option label="传球训练" value="4" />
             </el-select>
           </el-form-item>
 
@@ -87,10 +89,11 @@
               v-model="selectionFilter.status"
               placeholder="全部状态"
               clearable
+              style="width: 200px"
               @change="filterAvailableCourses"
             >
-              <el-option label="报名中" value="enrolling" />
-              <el-option label="即将开始" value="pending" />
+              <el-option label="报名中" value="开始报名" />
+              <el-option label="即将开始" value="未开始报名" />
             </el-select>
           </el-form-item>
 
@@ -99,6 +102,7 @@
               v-model="selectionFilter.timeSlot"
               placeholder="时间偏好"
               clearable
+              style="width: 200px"
               @change="filterAvailableCourses"
             >
               <el-option label="上午" value="morning" />
@@ -112,15 +116,16 @@
               v-model="selectionFilter.difficulty"
               placeholder="全部难度"
               clearable
+              style="width: 200px"
               @change="filterAvailableCourses"
             >
-              <el-option label="初级" value="beginner" />
-              <el-option label="中级" value="intermediate" />
-              <el-option label="高级" value="advanced" />
+              <el-option label="初级" value="1" />
+              <el-option label="中级" value="2" />
+              <el-option label="高级" value="3" />
             </el-select>
           </el-form-item>
 
-          <el-form-item>
+          <el-form-item label="搜索">
             <el-input
               v-model="selectionFilter.keyword"
               placeholder="搜索课程名称、教师"
@@ -146,23 +151,23 @@
         <div class="selected-courses-list">
           <div
             v-for="course in selectedCourses"
-            :key="course.id"
+            :key="course.course.id"
             class="selected-course-item"
           >
             <div class="course-info">
-              <div class="course-name">{{ course.course_name }}</div>
+              <div class="course-name">{{ course.course.course_name }}</div>
               <div class="course-details">
                 <span class="detail">
                   <i class="fas fa-chalkboard-teacher" />
-                  {{ course.teacher_name }}
+                  {{ course.teacher.real_name }}
                 </span>
                 <span class="detail">
                   <i class="fas fa-clock" />
-                  {{ course.schedule }}
+                  {{ course.course.schedule }}
                 </span>
                 <span class="detail">
                   <i class="fas fa-star" />
-                  {{ course.credits }}学分
+                  {{ course.course.credits }}学分
                 </span>
               </div>
             </div>
@@ -198,13 +203,13 @@
         <div class="courses-list">
           <div
             v-for="course in filteredAvailableCourses"
-            :key="course.id"
+            :key="course.course.id"
             class="course-selection-item"
-            :class="{ selected: isCourseSelected(course.id) }"
+            :class="{ selected: isCourseSelected(course.course.id) }"
           >
             <div class="selection-checkbox">
               <el-checkbox
-                :model-value="isCourseSelected(course.id)"
+                :model-value="isCourseSelected(course.course.id)"
                 :disabled="!canSelectCourse(course)"
                 @change="toggleCourseSelection(course, $event)"
               >
@@ -214,50 +219,54 @@
 
             <div class="course-main-info" @click="viewCourseDetail(course)">
               <div class="course-header">
-                <span class="course-code">{{ course.course_code }}</span>
+                <span class="course-code">{{ course.course.id }}</span>
                 <el-tag
-                  :type="getCourseTypeTag(course.course_type)"
+                  :type="getCourseTypeTag(course.category.id)"
                   size="small"
                 >
-                  {{ getCourseTypeText(course.course_type) }}
+                  {{ course.category.name }}
                 </el-tag>
                 <el-tag
-                  :type="getDifficultyTag(course.difficulty)"
+                  :type="getDifficultyTag(course.course.difficulty)"
                   size="small"
                 >
-                  {{ getDifficultyText(course.difficulty) }}
+                  {{ getDifficultyText(course.course.difficulty) }}
                 </el-tag>
               </div>
 
-              <h3 class="course-title">{{ course.course_name }}</h3>
+              <h3 class="course-title">{{ course.course.course_name }}</h3>
 
               <div class="course-teacher">
                 <i class="fas fa-user-circle" />
-                <span class="teacher-name">{{ course.teacher_name }}</span>
-                <span class="teacher-title">{{ course.teacher_title }}</span>
+                <span class="teacher-name">{{ course.teacher.real_name }}</span>
+                <span class="teacher-title">{{
+                  course.teacher.teacher_position
+                }}</span>
               </div>
 
               <div class="course-details">
                 <div class="detail-item">
                   <i class="fas fa-clock" />
-                  <span>{{ course.schedule }}</span>
+                  <span>{{ course.course.schedule }}</span>
                 </div>
                 <div class="detail-item">
                   <i class="fas fa-map-marker-alt" />
-                  <span>{{ course.location }}</span>
+                  <span>{{ course.course.location }}</span>
                 </div>
                 <div class="detail-item">
                   <i class="fas fa-calendar-alt" />
                   <span
-                    >{{ formatDate(course.start_date) }} -
-                    {{ formatDate(course.end_date) }}</span
+                    >{{ formatDate(course.course.start_date) }} -
+                    {{ formatDate(course.course.end_date) }}</span
                   >
                 </div>
               </div>
 
               <div class="course-capacity">
                 <span class="capacity-text">
-                  {{ course.current_students }}/{{ course.capacity }}人
+                  {{ course.course.current_students }}/{{
+                    course.course.capacity
+                  }}人
                 </span>
                 <el-progress
                   :percentage="getCapacityPercentage(course)"
@@ -271,7 +280,9 @@
             <div class="course-actions">
               <div class="course-credits">
                 <i class="fas fa-star" />
-                <span class="credits-value">{{ course.credits }}学分</span>
+                <span class="credits-value"
+                  >{{ course.course.credits }}学分</span
+                >
               </div>
 
               <div class="action-buttons">
@@ -868,7 +879,7 @@
     <!-- 课程详情弹窗 -->
     <el-dialog
       v-model="courseDetailVisible"
-      :title="selectedCourse?.course_name"
+      :title="selectedCourse?.course.course_name"
       width="600px"
       @close="closeCourseDetail"
     >
@@ -876,28 +887,28 @@
         <div class="course-basic-info">
           <div class="info-row">
             <span class="info-label">课程编号：</span>
-            <span class="info-value">{{ selectedCourse.course_code }}</span>
+            <span class="info-value">{{ selectedCourse.course.id }}</span>
           </div>
           <div class="info-row">
             <span class="info-label">课程类型：</span>
             <el-tag
-              :type="getCourseTypeTag(selectedCourse.course_type)"
+              :type="getCourseTypeTag(selectedCourse.category.id)"
               size="small"
             >
-              {{ getCourseTypeText(selectedCourse.course_type) }}
+              {{ selectedCourse.category.name }}
             </el-tag>
           </div>
           <div class="info-row">
             <span class="info-label">学分：</span>
-            <span class="info-value">{{ selectedCourse.credits }}学分</span>
+            <span class="info-value">{{ selectedCourse.course.credits }}学分</span>
           </div>
           <div class="info-row">
             <span class="info-label">难度等级：</span>
             <el-tag
-              :type="getDifficultyTag(selectedCourse.difficulty)"
+              :type="getDifficultyTag(selectedCourse.course.difficulty)"
               size="small"
             >
-              {{ getDifficultyText(selectedCourse.difficulty) }}
+              {{ getDifficultyText(selectedCourse.course.difficulty) }}
             </el-tag>
           </div>
         </div>
@@ -905,10 +916,12 @@
         <div class="course-teacher-info">
           <h4><i class="fas fa-chalkboard-teacher" /> 授课教师</h4>
           <div class="teacher-details">
-            <div class="teacher-name">{{ selectedCourse.teacher_name }}</div>
-            <div class="teacher-title">{{ selectedCourse.teacher_title }}</div>
+            <div class="teacher-name">{{ selectedCourse.teacher.real_name }}</div>
+            <div class="teacher-title">
+              {{ selectedCourse.teacher.teacher_position }}
+            </div>
             <div class="teacher-experience">
-              教龄：{{ selectedCourse.teacher_experience }}年
+              教龄：{{ selectedCourse.teacher.teaching_year }}年
             </div>
           </div>
         </div>
@@ -918,17 +931,17 @@
           <div class="schedule-details">
             <div class="schedule-item">
               <i class="fas fa-clock" />
-              <span>{{ selectedCourse.schedule }}</span>
+              <span>{{ selectedCourse.course.schedule }}</span>
             </div>
             <div class="schedule-item">
               <i class="fas fa-map-marker-alt" />
-              <span>{{ selectedCourse.location }}</span>
+              <span>{{ selectedCourse.course.location }}</span>
             </div>
             <div class="schedule-item">
               <i class="fas fa-calendar" />
               <span
-                >{{ formatDate(selectedCourse.start_date) }} -
-                {{ formatDate(selectedCourse.end_date) }}</span
+                >{{ formatDate(selectedCourse.course.study_date) }} -
+                {{ formatDate(selectedCourse.course.finish_date) }}</span
               >
             </div>
           </div>
@@ -936,7 +949,7 @@
 
         <div class="course-description">
           <h4><i class="fas fa-info-circle" /> 课程描述</h4>
-          <p>{{ selectedCourse.description }}</p>
+          <p>{{ selectedCourse.course.description }}</p>
         </div>
 
         <div class="course-capacity-info">
@@ -944,8 +957,8 @@
           <div class="capacity-details">
             <div class="capacity-progress">
               <span class="capacity-text">
-                已选 {{ selectedCourse.current_students }} 人 / 容量
-                {{ selectedCourse.capacity }} 人
+                已选 {{ selectedCourse.course.current_students }} 人 / 容量
+                {{ selectedCourse.course.capacity }} 人
               </span>
               <el-progress
                 :percentage="getCapacityPercentage(selectedCourse)"
@@ -999,6 +1012,7 @@ import {
   type UploadFiles
 } from "element-plus";
 import type { FormRules } from "element-plus";
+import { getCourses } from "@/api/courses";
 
 // ---------------------- 类型定义 ----------------------
 interface Course {
@@ -1093,134 +1107,13 @@ const progressSteps = ref<ProgressStep[]>([
 
 // ---------------------- 模拟数据 ----------------------
 // 可选课程数据
-const availableCourses = ref<Course[]>([
-  {
-    id: 1,
-    course_code: "SV101",
-    course_name: "基础发球入门",
-    course_type: "serve",
-    description: "学习发球的基本姿势、手型和用力技巧",
-    difficulty: "beginner",
-    status: "enrolling",
-    teacher_id: 1,
-    teacher_name: "李教练",
-    teacher_title: "国家级教练",
-    teacher_experience: 15,
-    credits: 1,
-    capacity: 20,
-    current_students: 12,
-    location: "排球馆A区",
-    schedule: "每周一、三 14:00-16:00",
-    start_date: "2024-02-15",
-    end_date: "2024-06-15",
-    is_featured: true
-  },
-  {
-    id: 2,
-    course_code: "RC201",
-    course_name: "一传稳定性训练",
-    course_type: "receive",
-    description: "提高一传成功率，培养稳定的接发球能力",
-    difficulty: "intermediate",
-    status: "enrolling",
-    teacher_id: 2,
-    teacher_name: "王教练",
-    teacher_title: "高级教练",
-    teacher_experience: 10,
-    credits: 2,
-    capacity: 15,
-    current_students: 10,
-    location: "排球馆B区",
-    schedule: "每周二、四 16:00-18:00",
-    start_date: "2024-03-01",
-    end_date: "2024-07-01",
-    is_featured: false
-  },
-  {
-    id: 3,
-    course_code: "SP301",
-    course_name: "战术扣球与线路变化",
-    course_type: "spike",
-    description: "高级扣球技巧训练，学习战术配合和线路变化",
-    difficulty: "advanced",
-    status: "enrolling",
-    teacher_id: 3,
-    teacher_name: "张教练",
-    teacher_title: "特级教练",
-    teacher_experience: 20,
-    credits: 3,
-    capacity: 10,
-    current_students: 8,
-    location: "专业训练馆",
-    schedule: "每周五 14:00-16:00",
-    start_date: "2024-01-30",
-    end_date: "2024-05-30",
-    is_featured: true
-  },
-  {
-    id: 4,
-    course_code: "SV201",
-    course_name: "强力跳发球训练",
-    course_type: "serve",
-    description: "掌握跳发球的起跳时机、击球点和力量控制",
-    difficulty: "intermediate",
-    status: "enrolling",
-    teacher_id: 2,
-    teacher_name: "王教练",
-    teacher_title: "高级教练",
-    teacher_experience: 10,
-    credits: 2,
-    capacity: 15,
-    current_students: 15,
-    location: "排球馆C区",
-    schedule: "每周二、四 16:00-18:00",
-    start_date: "2024-03-10",
-    end_date: "2024-07-10",
-    is_featured: false
-  },
-  {
-    id: 5,
-    course_code: "RC101",
-    course_name: "基础接球入门",
-    course_type: "receive",
-    description: "学习接球的基本姿势、手型和移动步法",
-    difficulty: "beginner",
-    status: "enrolling",
-    teacher_id: 4,
-    teacher_name: "刘教练",
-    teacher_title: "中级教练",
-    teacher_experience: 8,
-    credits: 1,
-    capacity: 25,
-    current_students: 18,
-    location: "排球馆D区",
-    schedule: "每周一、四 09:00-11:00",
-    start_date: "2024-02-20",
-    end_date: "2024-06-20",
-    is_featured: true
-  },
-  {
-    id: 6,
-    course_code: "SP101",
-    course_name: "基础扣球入门",
-    course_type: "spike",
-    description: "学习扣球的基本姿势、起跳时机和击球点",
-    difficulty: "beginner",
-    status: "pending",
-    teacher_id: 2,
-    teacher_name: "王教练",
-    teacher_title: "高级教练",
-    teacher_experience: 10,
-    credits: 1,
-    capacity: 20,
-    current_students: 0,
-    location: "排球馆E区",
-    schedule: "每周二、四 10:00-12:00",
-    start_date: "2024-02-25",
-    end_date: "2024-06-25",
-    is_featured: false
-  }
-]);
+const availableCourses = ref<Course[]>([]);
+const initCourses = async () => {
+  const res = await getCourses();
+  console.log(res.data);
+  availableCourses.value = res.data;
+};
+initCourses();
 
 // 已选课程
 const selectedCourses = ref<Course[]>([]);
@@ -1278,10 +1171,10 @@ const myApplications = ref<Application[]>([
 
 // ---------------------- 筛选条件 ----------------------
 const selectionFilter = reactive({
-  category: "" as "" | "spike" | "receive" | "serve",
-  status: "" as "" | "enrolling" | "pending",
-  timeSlot: "" as "" | "morning" | "afternoon" | "evening",
-  difficulty: "" as "" | "beginner" | "intermediate" | "advanced",
+  category: null,
+  status: null,
+  timeSlot: null,
+  difficulty: null,
   keyword: ""
 });
 
@@ -1336,39 +1229,51 @@ const applicationsPagination = reactive({
 // ---------------------- 计算属性 ----------------------
 // 已选总学分
 const selectedCredits = computed(() => {
-  return selectedCourses.value.reduce((sum, course) => sum + course.credits, 0);
+  return selectedCourses.value.reduce(
+    (sum, course) => sum + parseFloat(course.course.credits),
+    0
+  );
 });
 
 // 过滤后的可选课程
 const filteredAvailableCourses = computed(() => {
   let filtered = availableCourses.value.filter(
-    course => course.status === "enrolling" || course.status === "pending"
+    course =>
+      course.course.status === "开始报名" ||
+      course.course.status === "未开始报名"
   );
 
   // 按分类筛选
   if (selectionFilter.category) {
     filtered = filtered.filter(
-      course => course.course_type === selectionFilter.category
+      course => course.category.id == selectionFilter.category
     );
   }
 
   // 按状态筛选
   if (selectionFilter.status) {
     filtered = filtered.filter(
-      course => course.status === selectionFilter.status
+      course => course.course.status === selectionFilter.status
     );
   }
-
   // 按时间偏好筛选
   if (selectionFilter.timeSlot) {
     filtered = filtered.filter(course => {
-      const schedule = course.schedule.toLowerCase();
-      if (selectionFilter.timeSlot === "morning") {
+      const schedule = course.course.schedule;
+      if (selectionFilter.timeSlot === "evening") {
         return (
-          schedule.includes("上午") ||
-          schedule.includes("9") ||
-          schedule.includes("10") ||
-          schedule.includes("11")
+          schedule.includes("晚上") ||
+          schedule.includes("19") ||
+          schedule.includes("20") ||
+          schedule.includes("21")
+        );
+      } else if (selectionFilter.timeSlot === "morning") {
+        return (
+          (schedule.includes("上午") ||
+            schedule.includes("9") ||
+            schedule.includes("10") ||
+            schedule.includes("11")) &&
+          !schedule.includes("19")
         );
       } else if (selectionFilter.timeSlot === "afternoon") {
         return (
@@ -1376,13 +1281,6 @@ const filteredAvailableCourses = computed(() => {
           schedule.includes("14") ||
           schedule.includes("15") ||
           schedule.includes("16")
-        );
-      } else if (selectionFilter.timeSlot === "evening") {
-        return (
-          schedule.includes("晚上") ||
-          schedule.includes("19") ||
-          schedule.includes("20") ||
-          schedule.includes("21")
         );
       }
       return true;
@@ -1392,7 +1290,7 @@ const filteredAvailableCourses = computed(() => {
   // 按难度筛选
   if (selectionFilter.difficulty) {
     filtered = filtered.filter(
-      course => course.difficulty === selectionFilter.difficulty
+      course => course.course.difficulty == selectionFilter.difficulty
     );
   }
 
@@ -1401,10 +1299,10 @@ const filteredAvailableCourses = computed(() => {
     const keyword = selectionFilter.keyword.toLowerCase();
     filtered = filtered.filter(
       course =>
-        course.course_name.toLowerCase().includes(keyword) ||
-        course.description.toLowerCase().includes(keyword) ||
-        course.teacher_name.toLowerCase().includes(keyword) ||
-        course.course_code.toLowerCase().includes(keyword)
+        course.course.course_name?.includes(keyword) ||
+        course.course.description?.includes(keyword) ||
+        course.teacher.real_name?.includes(keyword) ||
+        course.course.id == keyword
     );
   }
 
@@ -1462,27 +1360,28 @@ const getCourseTypeText = (type: string) => {
 
 const getCourseTypeTag = (type: string) => {
   const map: Record<string, string> = {
-    spike: "danger",
-    receive: "success",
-    serve: "primary"
+    1: "danger",
+    2: "success",
+    3: "primary",
+    4: "warning"
   };
   return map[type] || "info";
 };
 
 const getDifficultyText = (difficulty: string) => {
   const map: Record<string, string> = {
-    beginner: "初级",
-    intermediate: "中级",
-    advanced: "高级"
+    1: "初级",
+    2: "中级",
+    3: "高级"
   };
   return map[difficulty] || difficulty;
 };
 
 const getDifficultyTag = (difficulty: string) => {
   const map: Record<string, string> = {
-    beginner: "success",
-    intermediate: "warning",
-    advanced: "danger"
+    1: "success",
+    2: "warning",
+    3: "danger"
   };
   return map[difficulty] || "info";
 };
@@ -1534,7 +1433,9 @@ const formatDateTime = (date: Date) => {
 };
 
 const getCapacityPercentage = (course: Course) => {
-  return Math.round((course.current_students / course.capacity) * 100);
+  return Math.round(
+    (course.course.current_students / course.course.capacity) * 100
+  );
 };
 
 const getCapacityColor = (course: Course) => {
@@ -1546,42 +1447,50 @@ const getCapacityColor = (course: Course) => {
 
 const isCourseSelected = (courseId?: number) => {
   if (!courseId) return false;
-  return selectedCourses.value.some(course => course.id === courseId);
+  return selectedCourses.value.some(course => course.course.id === courseId);
 };
 
 const canSelectCourse = (course: Course) => {
   // 检查课程状态
-  if (course.status !== "enrolling" && course.status !== "pending") {
+  if (
+    course.course.status !== "开始报名" &&
+    course.course.status !== "未开始报名"
+  ) {
+    console.log(1)
     return false;
   }
 
   // 检查是否已选满
-  if (course.current_students >= course.capacity) {
+  if (course.course.current_students >= course.course.capacity) {
+    console.log(2)
     return false;
   }
 
   // 检查是否已达到最大课程数
   if (selectedCourses.value.length >= maxCourses) {
+    console.log(3)
     return false;
   }
 
   // 检查是否已达到最大学分
-  if (selectedCredits.value + course.credits > maxCredits) {
+  if (selectedCredits.value + parseFloat(course.course.credits) > maxCredits) {
+    console.log(4)
     return false;
   }
 
   // 检查是否已选择该课程
-  if (isCourseSelected(course.id)) {
+  if (isCourseSelected(course.course.id)) {
+    console.log(5)
     return false;
   }
 
   // 检查时间冲突
-  const hasTimeConflict = selectedCourses.value.some(selectedCourse => {
+  const hasTimeConflict = selectedCourses.value.some(item => {
     // 这里可以添加时间冲突检查逻辑
     // 例如：检查上课时间是否重叠
-    return false;
+    return item.course.schedule === course.course.schedule
   });
-
+  console.log(hasTimeConflict)
   return !hasTimeConflict;
 };
 
@@ -1646,18 +1555,20 @@ const toggleCourseSelection = (course: Course, selected: boolean) => {
       return;
     }
     selectedCourses.value.push(course);
-    ElMessage.success(`已选择课程：${course.course_name}`);
+    ElMessage.success(`已选择课程：${course.course.course_name}`);
   } else {
     selectedCourses.value = selectedCourses.value.filter(
       c => c.id !== course.id
     );
-    ElMessage.info(`已取消选择课程：${course.course_name}`);
+    ElMessage.info(`已取消选择课程：${course.course.course_name}`);
   }
 };
 
 const removeFromSelection = (course: Course) => {
-  selectedCourses.value = selectedCourses.value.filter(c => c.id !== course.id);
-  ElMessage.info(`已移除课程：${course.course_name}`);
+  selectedCourses.value = selectedCourses.value.filter(
+    c => c.course.id !== course.course.id
+  );
+  ElMessage.info(`已移除课程：${course.course.course_name}`);
 };
 
 const clearSelection = () => {
@@ -1702,7 +1613,6 @@ const viewCourseDetail = (course: Course) => {
 
 const closeCourseDetail = () => {
   courseDetailVisible.value = false;
-  selectedCourse.value = null;
 };
 
 const selectCourseFromDetail = () => {

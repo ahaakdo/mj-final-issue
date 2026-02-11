@@ -24,7 +24,7 @@
         >
           <i class="fas fa-bolt" />
           <span>{{ item.name }}</span>
-          <span class="course-count">1</span>
+          <span class="course-count">{{ caculateCourseSum(item.id) }}</span>
         </div>
       </div>
     </div>
@@ -186,20 +186,20 @@
           {{ getCategoryTitle(activeCategory) }}课程
           <span class="courses-count">({{ filteredCourses.length }})</span>
         </h2>
-<!--        <div class="sort-controls">-->
-<!--          <el-select-->
-<!--            v-model="sortOption"-->
-<!--            placeholder="排序方式"-->
-<!--            size="small"-->
-<!--            @change="sortCourses"-->
-<!--          >-->
-<!--            <el-option label="最新课程" value="newest" />-->
-<!--            <el-option label="最早上课" value="earliest" />-->
-<!--            <el-option label="评分最高" value="rating" />-->
-<!--            <el-option label="剩余名额" value="seats" />-->
-<!--            <el-option label="课程热度" value="popularity" />-->
-<!--          </el-select>-->
-<!--        </div>-->
+        <!--        <div class="sort-controls">-->
+        <!--          <el-select-->
+        <!--            v-model="sortOption"-->
+        <!--            placeholder="排序方式"-->
+        <!--            size="small"-->
+        <!--            @change="sortCourses"-->
+        <!--          >-->
+        <!--            <el-option label="最新课程" value="newest" />-->
+        <!--            <el-option label="最早上课" value="earliest" />-->
+        <!--            <el-option label="评分最高" value="rating" />-->
+        <!--            <el-option label="剩余名额" value="seats" />-->
+        <!--            <el-option label="课程热度" value="popularity" />-->
+        <!--          </el-select>-->
+        <!--        </div>-->
       </div>
       <div v-if="loading" class="loading-spinner">
         <i class="fas fa-spinner fa-spin" />
@@ -636,6 +636,16 @@ const filteredCourses = computed(() => {
   }
   return filtered;
 });
+
+const caculateCourseSum = (id: any) => {
+  let sum = 0;
+  courseItem.value.forEach(item => {
+    if (item.category.id === id) {
+      sum++;
+    }
+  });
+  return sum;
+};
 
 // 分页后的课程
 const paginatedCourses = computed(() => {
