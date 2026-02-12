@@ -1,7 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const db = require("../db");
-
+const jwt = require("jsonwebtoken");
 // 获取所有课程
 /**
  * 获取排球课程列表
@@ -9,6 +9,16 @@ const db = require("../db");
  */
 router.get("/", async (req, res) => {
   try {
+    const authHeader = req.headers["authorization"];
+    const token = authHeader && authHeader.split(" ")[1];
+
+    if (!token) {
+      return res.status(401).json({ message: "未登录" });
+    }
+
+    const decoded = jwt.verify(token, "volleyball_2026_secret");
+    const studentId = decoded.id; // 获取当前学生 ID
+
     const sql = `
       SELECT
         v.id AS c_id, v.course_name AS c_course_name, v.credits AS c_credits,
@@ -21,22 +31,30 @@ router.get("/", async (req, res) => {
         v.status,
         t.id AS t_id, t.real_name AS t_real_name, t.title AS t_teacher_position,
         t.teaching_year AS t_teaching_year, t.avatar AS t_avatar, t.introduction AS t_introduction,
-        cat.id AS cat_id, cat.name AS cat_name, cat.description AS cat_description
+        cat.id AS cat_id, cat.name AS cat_name, cat.description AS cat_description,
+        -- 获取报名表信息，前缀设为 s_
+        s.id AS s_id, s.student_id AS s_student_id, s.course_id AS s_course_id,
+        s.apply_time AS s_signup_time, s.apply_type AS s_status
       FROM v_courses v
              LEFT JOIN teachers t ON v.teacher_id = t.id
              LEFT JOIN course_categories cat ON v.category_id = cat.id
+             -- 关键：根据当前登录学生 ID 关联报名表
+             LEFT JOIN course_signups s ON v.id = s.course_id AND s.student_id = ?
       WHERE v.is_visible = TRUE
       ORDER BY v.created_at DESC;
     `;
 
-    const [rows] = await db.query(sql);
+    // 传入 studentId 填充 SQL 中的问号
+    const [rows] = await db.query(sql, [studentId]);
+
     const formattedData = rows.map(row => {
       const item = {
         course: {
           status: row.status
         },
         teacher: {},
-        category: {}
+        category: {},
+        signup: null // 初始化为 null
       };
 
       Object.keys(row).forEach(key => {
@@ -46,6 +64,12 @@ router.get("/", async (req, res) => {
           item.teacher[key.replace("t_", "")] = row[key];
         } else if (key.startsWith("cat_")) {
           item.category[key.replace("cat_", "")] = row[key];
+        } else if (key.startsWith("s_")) {
+          // 如果 s_id 存在，说明有报名记录，则填充 signup 对象
+          if (row.s_id) {
+            if (!item.signup) item.signup = {};
+            item.signup[key.replace("s_", "")] = row[key];
+          }
         }
       });
 
@@ -59,6 +83,9 @@ router.get("/", async (req, res) => {
     });
   } catch (error) {
     console.error("SQL Error:", error.message);
+    if (error.name === "JsonWebTokenError") {
+      return res.status(403).json({ code: 403, message: "Token 无效" });
+    }
     res.status(500).json({ code: 500, message: "Internal Server Error" });
   }
 });
@@ -179,10 +206,9 @@ router.post("/withdraw", async (req, res) => {
   try {
     const {
       username,
-      course_id, // 此时 course_id 可以是数字或数组
+      course_id,
       withdraw_reason,
       material,
-      expire_time,
       urgent
     } = req.body;
 
@@ -195,35 +221,29 @@ router.post("/withdraw", async (req, res) => {
       return res.status(404).json({ code: 404, message: "学生信息不存在" });
     }
 
-    // 统一转为数组
     const courseIds = Array.isArray(course_id) ? course_id : [course_id];
 
-    // 使用 SQL 的 IN 语法进行批量更新，效率最高
+    // 建议直接写全 CURRENT_TIMESTAMP，并移除多余的换行或特殊空格
     const sql = `
       UPDATE course_signups
       SET
-        application_type = "1",
+        apply_type = "pending",
         apply_reason = ?,
         material = ?,
         urgent = ?,
-        special_message = "",
-        expire_time = ?,
-        apply_type = "pending",
-        apply_time = CURRENT_TIMESTAMP,
-        updated_at = CURRENT_TIMESTAMP
+        apply_time = NOW(),
+        updated_at = NOW()
       WHERE student_id = ?
         AND course_id IN (?)
-        AND application_type != "1"
-        AND apply_type != "reject";
     `;
-
+    // 注意：你之前的代码里写的是 apply_type != "reject"，
+    // 但通常表字段名是 status，请确认你的数据库字段名到底是哪个。
     const [result] = await db.query(sql, [
       withdraw_reason || "申请退课",
-      material || null,
-      urgent || 1,
-      expire_time || null,
+      Array.isArray(material) ? JSON.stringify(material) : material || null,
+      urgent ?? 1,
       student_id,
-      courseIds // mysql2 会自动展开数组为 (id1, id2, ...)
+      courseIds
     ]);
 
     if (result.affectedRows === 0) {
@@ -239,7 +259,8 @@ router.post("/withdraw", async (req, res) => {
       data: { affectedRows: result.affectedRows }
     });
   } catch (error) {
-    console.error("Withdraw Error:", error.message);
+    // 这里打印完整的 error 对象能看到更具体的报错位置
+    console.error("Withdraw Error:", error);
     res.status(500).json({ code: 500, message: "Internal Server Error" });
   }
 });

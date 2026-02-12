@@ -153,7 +153,16 @@
             v-for="course in selectedCourses"
             :key="course.course.id"
             class="selected-course-item"
+            style="position: relative"
           >
+            <div style="position: absolute; top: 10px; right: 16px">
+              <el-tag
+                :type="getSignupTagType(course.signup?.status)"
+                size="small"
+              >
+                {{ getSignupText(course.signup?.status) }}
+              </el-tag>
+            </div>
             <div class="course-info">
               <div class="course-name">{{ course.course.course_name }}</div>
               <div class="course-details">
@@ -173,6 +182,7 @@
             </div>
             <div class="course-actions">
               <el-button
+                v-if="course.signup == null"
                 type="danger"
                 size="small"
                 @click="removeFromSelection(course)"
@@ -366,13 +376,26 @@
           <h3><i class="fas fa-clipboard-check" /> 申请课程清单</h3>
           <div class="courses-review-list">
             <div
-              v-for="(course, index) in selectedCourses"
+              v-for="(course, index) in selectedCourses.filter(
+                item => item.signup == null || item.signup.status === 'select'
+              )"
               :key="course.course.id"
               class="review-course-item"
+              :style="{
+                borderColor:
+                  course.course.id === selectedApplyId ? '#2ecc71' : '',
+                backgroundColor:
+                  course.course.id === selectedApplyId
+                    ? 'linear-gradient(135deg, rgba(46, 204, 113, 0.05) 0%, rgba(46, 204, 113, 0.02) 100%)'
+                    : ''
+              }"
+              @click="selectApplyCourse(course.course.id)"
             >
               <div class="review-index">{{ index + 1 }}</div>
               <div class="review-course-info">
-                <div class="review-course-name">{{ course.course.course_name }}</div>
+                <div class="review-course-name">
+                  {{ course.course.course_name }}
+                </div>
                 <div class="review-course-details">
                   <span>{{ course.teacher.real_name }}</span>
                   <span>{{ course.course.schedule }}</span>
@@ -380,7 +403,12 @@
                 </div>
               </div>
               <div class="review-course-status">
-                <el-tag type="info" size="small"> 待申请 </el-tag>
+                <el-tag
+                  :type="getSignupTagType(course.signup?.status)"
+                  size="small"
+                >
+                  {{ getSignupText(course.signup?.status) }}
+                </el-tag>
               </div>
             </div>
           </div>
@@ -425,7 +453,7 @@
               </div>
             </el-form-item>
 
-            <el-form-item label="期望上课时间" prop="preferred_time">
+            <el-form-item v-if="applicationForm.apply_type ==='0'" label="期望上课时间" prop="preferred_time">
               <el-checkbox-group v-model="applicationForm.preferred_time">
                 <el-checkbox label="morning">上午</el-checkbox>
                 <el-checkbox label="afternoon">下午</el-checkbox>
@@ -433,7 +461,7 @@
               </el-checkbox-group>
             </el-form-item>
 
-            <el-form-item label="特殊要求" prop="special_requirements">
+            <el-form-item v-if="applicationForm.apply_type ==='0'" label="特殊要求" prop="special_requirements">
               <el-input
                 v-model="applicationForm.special_requirements"
                 type="textarea"
@@ -444,14 +472,22 @@
               />
             </el-form-item>
 
-            <el-form-item label="紧急联系人" prop="emergency_contact">
+            <el-form-item
+              v-if="applicationForm.apply_type === '0'"
+              label="邮箱"
+              prop="emergency_contact"
+            >
               <el-input
                 v-model="applicationForm.emergency_contact"
-                placeholder="请输入紧急联系人姓名"
+                placeholder="请输入紧急联系人邮箱"
               />
             </el-form-item>
 
-            <el-form-item label="联系电话" prop="emergency_phone">
+            <el-form-item
+              v-if="applicationForm.apply_type === '0'"
+              label="联系电话"
+              prop="emergency_phone"
+            >
               <el-input
                 v-model="applicationForm.emergency_phone"
                 placeholder="请输入紧急联系电话"
@@ -899,7 +935,9 @@
           </div>
           <div class="info-row">
             <span class="info-label">学分：</span>
-            <span class="info-value">{{ selectedCourse.course.credits }}学分</span>
+            <span class="info-value"
+              >{{ selectedCourse.course.credits }}学分</span
+            >
           </div>
           <div class="info-row">
             <span class="info-label">难度等级：</span>
@@ -915,7 +953,9 @@
         <div class="course-teacher-info">
           <h4><i class="fas fa-chalkboard-teacher" /> 授课教师</h4>
           <div class="teacher-details">
-            <div class="teacher-name">{{ selectedCourse.teacher.real_name }}</div>
+            <div class="teacher-name">
+              {{ selectedCourse.teacher.real_name }}
+            </div>
             <div class="teacher-title">
               {{ selectedCourse.teacher.teacher_position }}
             </div>
@@ -1111,12 +1151,20 @@ const initCourses = async () => {
   const res = await getCourses();
   console.log(res.data);
   availableCourses.value = res.data;
+  await nextTick(() => {
+    filteredAvailableCourses.value.forEach(item => {
+      if (item.signup) selectedCourses.value.push(item);
+    });
+  });
 };
 initCourses();
 
 // 已选课程
 const selectedCourses = ref<Course[]>([]);
-
+const selectedApplyId = ref();
+const selectApplyCourse = id => {
+  selectedApplyId.value = id;
+};
 // 我的申请记录
 const myApplications = ref<Application[]>([
   {
@@ -1385,6 +1433,23 @@ const getDifficultyTag = (difficulty: string) => {
   return map[difficulty] || "info";
 };
 
+const getSignupText = (status: string) => {
+  const map: Record<string, string> = {
+    pending: "待审批",
+    select: "已通过",
+    rejected: "已驳回"
+  };
+  return map[status] || "待申请";
+};
+const getSignupTagType = (status: string) => {
+  const map: Record<string, string> = {
+    pending: "warning",
+    select: "success",
+    rejected: "danger"
+  };
+  return map[status] || "info";
+};
+
 const getStatusText = (status: string) => {
   const map: Record<string, string> = {
     pending: "待审批",
@@ -1455,31 +1520,31 @@ const canSelectCourse = (course: Course) => {
     course.course.status !== "开始报名" &&
     course.course.status !== "未开始报名"
   ) {
-    console.log(1)
+    console.log(1);
     return false;
   }
 
   // 检查是否已选满
   if (course.course.current_students >= course.course.capacity) {
-    console.log(2)
+    console.log(2);
     return false;
   }
 
   // 检查是否已达到最大课程数
   if (selectedCourses.value.length >= maxCourses) {
-    console.log(3)
+    console.log(3);
     return false;
   }
 
   // 检查是否已达到最大学分
   if (selectedCredits.value + parseFloat(course.course.credits) > maxCredits) {
-    console.log(4)
+    console.log(4);
     return false;
   }
 
   // 检查是否已选择该课程
   if (isCourseSelected(course.course.id)) {
-    console.log(5)
+    console.log(5);
     return false;
   }
 
@@ -1487,9 +1552,9 @@ const canSelectCourse = (course: Course) => {
   const hasTimeConflict = selectedCourses.value.some(item => {
     // 这里可以添加时间冲突检查逻辑
     // 例如：检查上课时间是否重叠
-    return item.course.schedule === course.course.schedule
+    return item.course.schedule === course.course.schedule;
   });
-  console.log(hasTimeConflict)
+  console.log(hasTimeConflict);
   return !hasTimeConflict;
 };
 
@@ -1578,7 +1643,9 @@ const clearSelection = () => {
     cancelButtonText: "取消",
     type: "warning"
   }).then(() => {
-    selectedCourses.value = [];
+    selectedCourses.value = selectedCourses.value.filter(item => {
+      return item.signup != null;
+    });
     ElMessage.success("已清空所有已选课程");
   });
 };
@@ -1646,9 +1713,7 @@ const submitApplication = async () => {
     if (applicationForm.apply_type === "0") {
       await applyCourse({
         username: JSON.parse(localStorage.getItem("user-info")).username,
-        course_id: selectedCourses.value.map(course => {
-          return course.course.id;
-        }),
+        course_id: [selectedApplyId.value],
         application_type: 0,
         apply_reason: applicationForm.apply_reason,
         urgent: applicationForm.priority,
@@ -1660,12 +1725,9 @@ const submitApplication = async () => {
     } else {
       await withdrawCourses({
         username: JSON.parse(localStorage.getItem("user-info")).username,
-        course_id: selectedCourses.value.map(course => {
-          return course.course.id;
-        }),
+        course_id: [selectedApplyId.value],
         withdraw_reason: applicationForm.apply_reason,
         urgent: applicationForm.priority,
-        expire_time: applicationForm.preferred_time,
         material: applicationForm.attachments
       });
     }
