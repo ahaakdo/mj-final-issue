@@ -34,7 +34,9 @@ router.get("/", async (req, res) => {
         cat.id AS cat_id, cat.name AS cat_name, cat.description AS cat_description,
         -- 获取报名表信息，前缀设为 s_
         s.id AS s_id, s.student_id AS s_student_id, s.course_id AS s_course_id,
-        s.apply_time AS s_signup_time, s.apply_type AS s_status
+        s.apply_time AS s_signup_time, s.apply_type AS s_status, s.apply_reason AS s_reason,
+        s.review_time AS s_review_time, s.review_notes AS s_review_notes, s.reject_reason AS s_reject_reason,
+        s.application_type AS s_application_type
       FROM v_courses v
              LEFT JOIN teachers t ON v.teacher_id = t.id
              LEFT JOIN course_categories cat ON v.category_id = cat.id
@@ -231,6 +233,7 @@ router.post("/withdraw", async (req, res) => {
         apply_reason = ?,
         material = ?,
         urgent = ?,
+        application_type = "1",
         apply_time = NOW(),
         updated_at = NOW()
       WHERE student_id = ?

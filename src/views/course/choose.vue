@@ -162,6 +162,13 @@
               >
                 {{ getSignupText(course.signup?.status) }}
               </el-tag>
+              &nbsp;&nbsp;
+              <el-tag
+                :type="getIsApplyTagType(course.signup?.application_type)"
+                size="small"
+              >
+                {{ getIsApplyText(course.signup?.application_type) }}
+              </el-tag>
             </div>
             <div class="course-info">
               <div class="course-name">{{ course.course.course_name }}</div>
@@ -681,22 +688,22 @@
           </div>
         </div>
 
-        <div class="stat-card" @click="filterApplicationsByStatus('approved')">
+        <div class="stat-card" @click="filterApplicationsByStatus('select')">
           <div class="stat-icon approved">
             <i class="fas fa-check-circle" />
           </div>
           <div class="stat-content">
-            <div class="stat-value">{{ getApplicationCount("approved") }}</div>
+            <div class="stat-value">{{ getApplicationCount("select") }}</div>
             <div class="stat-label">已通过</div>
           </div>
         </div>
 
-        <div class="stat-card" @click="filterApplicationsByStatus('rejected')">
+        <div class="stat-card" @click="filterApplicationsByStatus('reject')">
           <div class="stat-icon rejected">
             <i class="fas fa-times-circle" />
           </div>
           <div class="stat-content">
-            <div class="stat-value">{{ getApplicationCount("rejected") }}</div>
+            <div class="stat-value">{{ getApplicationCount("reject") }}</div>
             <div class="stat-label">已驳回</div>
           </div>
         </div>
@@ -706,7 +713,7 @@
             <i class="fas fa-list-alt" />
           </div>
           <div class="stat-content">
-            <div class="stat-value">{{ myApplications.length }}</div>
+            <div class="stat-value">{{ filteredApplications.length }}</div>
             <div class="stat-label">总申请数</div>
           </div>
         </div>
@@ -725,11 +732,13 @@
                 v-model="applicationFilter.status"
                 placeholder="全部状态"
                 clearable
+                style="width: 200px"
                 @change="filterMyApplications"
               >
+                <el-option label="全部" value="all" />
                 <el-option label="待审批" value="pending" />
-                <el-option label="已通过" value="approved" />
-                <el-option label="已驳回" value="rejected" />
+                <el-option label="已通过" value="select" />
+                <el-option label="已驳回" value="reject" />
               </el-select>
             </el-form-item>
 
@@ -738,11 +747,11 @@
                 v-model="applicationFilter.apply_type"
                 placeholder="全部类型"
                 clearable
+                style="width: 200px"
                 @change="filterMyApplications"
               >
-                <el-option label="选课申请" value="select" />
-                <el-option label="退课申请" value="withdraw" />
-                <el-option label="课程调整" value="adjust" />
+                <el-option label="选课申请" value="0" />
+                <el-option label="退课申请" value="1" />
               </el-select>
             </el-form-item>
 
@@ -778,14 +787,21 @@
             <div class="application-header">
               <div class="application-id">
                 <span class="id-label">申请编号：</span>
-                <span class="id-value">{{ application.id }}</span>
+                <span class="id-value">{{ application.signup.id }}</span>
               </div>
               <div class="application-status">
                 <el-tag
-                  :type="getStatusTagType(application.status)"
+                  :type="getStatusTagType(application.signup.status)"
                   size="small"
                 >
-                  {{ getStatusText(application.status) }}
+                  {{ getStatusText(application.signup.status) }}
+                </el-tag>
+                &nbsp;&nbsp;
+                <el-tag
+                  :type="getIsApplyTagType(application.signup?.application_type)"
+                  size="small"
+                >
+                  {{ getIsApplyText(application.signup?.application_type) }}
                 </el-tag>
               </div>
             </div>
@@ -795,25 +811,25 @@
                 <div class="info-item">
                   <i class="fas fa-book" />
                   <span class="info-label">申请课程：</span>
-                  <span class="info-value">{{ application.course_name }}</span>
+                  <span class="info-value">{{ application.course.course_name }}</span>
                 </div>
                 <div class="info-item">
                   <i class="fas fa-user-check" />
                   <span class="info-label">授课教师：</span>
-                  <span class="info-value">{{ application.teacher_name }}</span>
+                  <span class="info-value">{{ application.teacher.real_name }}</span>
                 </div>
                 <div class="info-item">
                   <i class="fas fa-calendar-alt" />
                   <span class="info-label">申请时间：</span>
                   <span class="info-value">{{
-                    formatDateTime(application.apply_time)
+                    formatDateTime(application.signup.signup_time)
                   }}</span>
                 </div>
                 <div class="info-item">
                   <i class="fas fa-clipboard" />
                   <span class="info-label">申请原因：</span>
                   <span class="info-value reason-text">{{
-                    application.apply_reason
+                    application.signup.reason
                   }}</span>
                 </div>
               </div>
@@ -828,16 +844,7 @@
                 </el-button>
 
                 <el-button
-                  v-if="application.status === 'pending'"
-                  type="warning"
-                  size="small"
-                  @click="editApplication(application)"
-                >
-                  <i class="fas fa-edit" /> 修改
-                </el-button>
-
-                <el-button
-                  v-if="application.status === 'pending'"
+                  v-if="application.signup.status === 'pending'"
                   type="danger"
                   size="small"
                   @click="cancelApplication(application)"
@@ -846,7 +853,7 @@
                 </el-button>
 
                 <el-button
-                  v-if="application.status === 'approved'"
+                  v-if="application.signup.status === 'select'"
                   type="success"
                   size="small"
                   @click="downloadApproval(application)"
@@ -857,31 +864,31 @@
             </div>
 
             <div
-              v-if="application.status !== 'pending'"
+              v-if="application.signup.status !== 'pending'"
               class="application-footer"
             >
               <div class="review-info">
                 <span class="reviewer">
                   <i class="fas fa-user-tie" />
-                  审批人：{{ application.reviewer_name || "系统自动审批" }}
+                  审批人：{{ application.teacher.real_name || "系统自动审批" }}
                 </span>
                 <span class="review-time">
                   <i class="fas fa-clock" />
-                  审批时间：{{ formatDateTime(application.review_time) }}
+                  审批时间：{{ formatDateTime(application.signup.review_time) }}
                 </span>
               </div>
-              <div v-if="application.review_notes" class="review-notes">
+              <div v-if="application.signup.review_notes" class="review-notes">
                 <i class="fas fa-comment" />
-                审批意见：{{ application.review_notes }}
+                审批意见： {{ application.signup.review_notes }}
               </div>
               <div
                 v-if="
-                  application.status === 'rejected' && application.reject_reason
+                  application.signup.status === 'reject' && application.signup.reject_reason
                 "
                 class="reject-reason"
               >
                 <i class="fas fa-exclamation-triangle" />
-                驳回原因：{{ application.reject_reason }}
+                驳回原因： {{ application.signup.reject_reason }}
               </div>
             </div>
           </div>
@@ -1031,7 +1038,7 @@
     <!-- 申请详情弹窗 -->
     <el-dialog
       v-model="applicationDetailVisible"
-      :title="`申请详情 - ${selectedApplication?.id}`"
+      :title="`申请详情 - ${selectedApplication?.signup?.id}`"
       width="700px"
     >
       <div v-if="selectedApplication" class="application-detail-modal">
@@ -1226,8 +1233,8 @@ const selectionFilter = reactive({
 });
 
 const applicationFilter = reactive({
-  status: "" as "" | "pending" | "approved" | "rejected",
-  apply_type: "" as "" | "select" | "withdraw" | "adjust",
+  status: null,
+  apply_type: null,
   dateRange: [] as string[]
 });
 
@@ -1358,7 +1365,7 @@ const filteredAvailableCourses = computed(() => {
 
 // 过滤后的申请记录
 const filteredApplications = computed(() => {
-  let filtered = [...myApplications.value];
+  let filtered = [...filteredAvailableCourses.value].filter(item => item.signup != null);
 
   // 按状态筛选
   if (applicationFilter.status) {
@@ -1366,7 +1373,7 @@ const filteredApplications = computed(() => {
       // 显示全部
     } else {
       filtered = filtered.filter(
-        app => app.status === applicationFilter.status
+        app => app.signup.status === applicationFilter.status
       );
     }
   }
@@ -1374,14 +1381,14 @@ const filteredApplications = computed(() => {
   // 按申请类型筛选
   if (applicationFilter.apply_type) {
     filtered = filtered.filter(
-      app => app.apply_type === applicationFilter.apply_type
+      app => app.signup.application_type === applicationFilter.apply_type
     );
   }
 
   // 按日期筛选
   if (applicationFilter.dateRange && applicationFilter.dateRange.length === 2) {
     filtered = filtered.filter(app => {
-      const applyDate = new Date(app.apply_time);
+      const applyDate = new Date(app.signup.signup_time);
       const startDate = new Date(applicationFilter.dateRange[0]);
       const endDate = new Date(applicationFilter.dateRange[1]);
       return applyDate >= startDate && applyDate <= endDate;
@@ -1445,16 +1452,29 @@ const getSignupTagType = (status: string) => {
   const map: Record<string, string> = {
     pending: "warning",
     select: "success",
-    rejected: "danger"
+    reject: "danger"
   };
   return map[status] || "info";
 };
-
+const getIsApplyTagType = (status: string) => {
+  const map: Record<string, string> = {
+    "0": "success",
+    "1": "danger"
+  };
+  return map[status] || "info";
+};
+const getIsApplyText = (status: string) => {
+  const map: Record<string, string> = {
+    "0": "选课申请",
+    "1": "退课申请"
+  };
+  return map[status] || "info";
+};
 const getStatusText = (status: string) => {
   const map: Record<string, string> = {
     pending: "待审批",
-    approved: "已通过",
-    rejected: "已驳回"
+    select: "已通过",
+    reject: "已驳回"
   };
   return map[status] || status;
 };
@@ -1462,8 +1482,8 @@ const getStatusText = (status: string) => {
 const getStatusTagType = (status: string) => {
   const map: Record<string, string> = {
     pending: "warning",
-    approved: "success",
-    rejected: "danger"
+    select: "success",
+    reject: "danger"
   };
   return map[status] || "info";
 };
@@ -1482,18 +1502,25 @@ const formatDate = (dateString: string) => {
   return `${date.getMonth() + 1}月${date.getDate()}日`;
 };
 
-const formatDateTime = (date: Date) => {
-  return date
-    .toLocaleString("zh-CN", {
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-      hour: "2-digit",
-      minute: "2-digit",
-      second: "2-digit",
-      hour12: false
-    })
-    .replace(/\//g, "-");
+const formatDateTime = (date: string | Date) => {
+  if (!date) return "";
+
+  // 1. 确保转换为 Date 对象
+  const d = new Date(date);
+
+  // 2. 检查是否为有效日期
+  if (isNaN(d.getTime())) return String(date);
+
+  // 3. 提取各部分并补零 (padStart)
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  const hours = String(d.getHours()).padStart(2, "0");
+  const minutes = String(d.getMinutes()).padStart(2, "0");
+  const seconds = String(d.getSeconds()).padStart(2, "0");
+
+  // 4. 拼接成最终格式
+  return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
 };
 
 const getCapacityPercentage = (course: Course) => {
@@ -1584,9 +1611,9 @@ const getSelectionHint = (course: Course) => {
 
 const getApplicationCount = (status: string) => {
   if (status === "all") {
-    return myApplications.value.length;
+    return filteredApplications.value.length;
   }
-  return myApplications.value.filter(app => app.status === status).length;
+  return filteredApplications.value.filter(app => app.signup.status === status).length;
 };
 
 // ---------------------- 事件处理函数 ----------------------
@@ -1840,7 +1867,7 @@ const filterApplicationsByStatus = (status: string) => {
 
 const startNewSelection = () => {
   currentStep.value = 1;
-  selectedCourses.value = [];
+  selectedCourses.value = selectedCourses.value.filter(item => item.signup != null);
   resetApplicationForm();
   resetSelectionFilter();
 };
@@ -2011,6 +2038,7 @@ onMounted(() => {
 }
 
 .step-info {
+  margin-top: -16px;
   flex: 1;
 }
 
