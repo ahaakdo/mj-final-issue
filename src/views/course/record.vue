@@ -418,15 +418,9 @@
             sortable="custom"
           >
             <template #default="{ row }">
-              <div v-if="row.grade_level" class="grade-cell">
-                <span
-                  class="grade-level"
-                  :class="getGradeLevelClass(row.grade_level)"
-                >
-                  {{ row.grade_level }}
-                </span>
-                <span v-if="row.total_score" class="grade-score">
-                  ({{ row.total_score }}分)
+              <div v-if="row.grade" class="grade-cell">
+                <span class="grade-score">
+                  {{ row.grade.final_score }}分
                 </span>
               </div>
               <span v-else class="no-grade">--</span>
@@ -441,27 +435,27 @@
             align="center"
           >
             <template #default="{ row }">
-              <span v-if="row.gpa" class="gpa-value">{{
-                row.gpa.toFixed(2)
+              <span v-if="row.grade" class="gpa-value">{{
+                row.grade.final_score / 10 - 5
               }}</span>
               <span v-else>--</span>
             </template>
           </el-table-column>
 
-          <el-table-column
-            prop="ranking"
-            label="班级排名"
-            width="100"
-            sortable="custom"
-            align="center"
-          >
-            <template #default="{ row }">
-              <span v-if="row.ranking" class="ranking">
-                第{{ row.ranking }}名
-              </span>
-              <span v-else>--</span>
-            </template>
-          </el-table-column>
+<!--          <el-table-column-->
+<!--            prop="ranking"-->
+<!--            label="班级排名"-->
+<!--            width="100"-->
+<!--            sortable="custom"-->
+<!--            align="center"-->
+<!--          >-->
+<!--            <template #default="{ row }">-->
+<!--              <span v-if="row.ranking" class="ranking">-->
+<!--                第{{ row.ranking }}名-->
+<!--              </span>-->
+<!--              <span v-else>&#45;&#45;</span>-->
+<!--            </template>-->
+<!--          </el-table-column>-->
 
           <!-- 操作列 -->
           <el-table-column

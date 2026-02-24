@@ -17,7 +17,7 @@ router.get("/", async (req, res) => {
     }
 
     const decoded = jwt.verify(token, "volleyball_2026_secret");
-    const studentId = decoded.id; // 获取当前学生 ID
+    const studentId = decoded.id; // 获取当前登录学生 ID
 
     const sql = `
       SELECT
@@ -32,21 +32,27 @@ router.get("/", async (req, res) => {
         t.id AS t_id, t.real_name AS t_real_name, t.title AS t_teacher_position,
         t.teaching_year AS t_teaching_year, t.avatar AS t_avatar, t.introduction AS t_introduction,
         cat.id AS cat_id, cat.name AS cat_name, cat.description AS cat_description,
-        -- 获取报名表信息，前缀设为 s_
+        -- 报名表信息 (course_signups)
         s.id AS s_id, s.student_id AS s_student_id, s.course_id AS s_course_id,
         s.apply_time AS s_signup_time, s.apply_type AS s_status, s.apply_reason AS s_reason,
         s.review_time AS s_review_time, s.review_notes AS s_review_notes, s.reject_reason AS s_reject_reason,
-        s.application_type AS s_application_type
+        s.application_type AS s_application_type,
+        -- 成绩表信息 (student_grades)，通过 signup_id 关联报名表的 id
+        g.attend_score AS g_attend_score,
+        g.performance_score AS g_performance_score,
+        g.final_score AS g_final_score
       FROM v_courses v
              LEFT JOIN teachers t ON v.teacher_id = t.id
              LEFT JOIN course_categories cat ON v.category_id = cat.id
-             -- 关键：根据当前登录学生 ID 关联报名表
+        -- 关联报名表：匹配当前学生和课程
              LEFT JOIN course_signups s ON v.id = s.course_id AND s.student_id = ?
+        -- 关联成绩表：student_grades.signup_id 对应 course_signups.id
+             LEFT JOIN student_grades g ON s.id = g.signup_id
       WHERE v.is_visible = TRUE
       ORDER BY v.created_at DESC;
     `;
 
-    // 传入 studentId 填充 SQL 中的问号
+    // 执行 SQL 查询
     const [rows] = await db.query(sql, [studentId]);
 
     const formattedData = rows.map(row => {
@@ -56,21 +62,41 @@ router.get("/", async (req, res) => {
         },
         teacher: {},
         category: {},
-        signup: null // 初始化为 null
+        signup: null, // 如果没报名，则为 null
+        grade: null // 如果没成绩，则为 null
       };
 
       Object.keys(row).forEach(key => {
+        // 1. 提取课程信息
         if (key.startsWith("c_")) {
           item.course[key.replace("c_", "")] = row[key];
-        } else if (key.startsWith("t_")) {
+        }
+        // 2. 提取教师信息
+        else if (key.startsWith("t_")) {
           item.teacher[key.replace("t_", "")] = row[key];
-        } else if (key.startsWith("cat_")) {
+        }
+        // 3. 提取分类信息
+        else if (key.startsWith("cat_")) {
           item.category[key.replace("cat_", "")] = row[key];
-        } else if (key.startsWith("s_")) {
-          // 如果 s_id 存在，说明有报名记录，则填充 signup 对象
+        }
+        // 4. 提取报名信息
+        else if (key.startsWith("s_")) {
           if (row.s_id) {
             if (!item.signup) item.signup = {};
             item.signup[key.replace("s_", "")] = row[key];
+          }
+        }
+        // 5. 提取成绩信息并赋予 grade 字段
+        else if (key.startsWith("g_")) {
+          // 只有当存在报名记录，且成绩字段不全为 null 时才创建 grade 对象
+          if (
+            row.s_id &&
+            (row.g_attend_score !== null ||
+              row.g_performance_score !== null ||
+              row.g_final_score !== null)
+          ) {
+            if (!item.grade) item.grade = {};
+            item.grade[key.replace("g_", "")] = row[key];
           }
         }
       });
