@@ -332,9 +332,9 @@
           >
             <template #default="{ row }">
               <div class="course-code-cell">
-                <span class="code-value">{{ row.course_code }}</span>
+                <span class="code-value">{{ row.course.id }}</span>
                 <el-tag
-                  v-if="row.is_featured"
+                  v-if="Number(row.course.recommend) >= 4"
                   type="danger"
                   size="mini"
                   effect="dark"
@@ -353,13 +353,13 @@
           >
             <template #default="{ row }">
               <div class="course-name-cell">
-                <div class="course-name">{{ row.course_name }}</div>
+                <div class="course-name">{{ row.course.course_name }}</div>
                 <div class="course-type">
-                  <el-tag :type="getCourseTypeTag(row.course_type)" size="mini">
-                    {{ getCourseTypeText(row.course_type) }}
+                  <el-tag :type="getCourseTypeTag(row.category.id)" size="mini">
+                    {{ row.category.name }}
                   </el-tag>
-                  <el-tag :type="getDifficultyTag(row.difficulty)" size="mini">
-                    {{ getDifficultyText(row.difficulty) }}
+                  <el-tag :type="getDifficultyTag(row.course.difficulty)" size="mini">
+                    {{ getDifficultyText(row.course.difficulty) }}
                   </el-tag>
                 </div>
               </div>
@@ -367,7 +367,7 @@
           </el-table-column>
 
           <el-table-column
-            prop="teacher_name"
+            prop="teacher.real_name"
             label="授课教师"
             width="120"
             sortable="custom"
@@ -381,23 +381,7 @@
             sortable="custom"
           >
             <template #default="{ row }">
-              {{ formatDateTime(row.selection_time) }}
-            </template>
-          </el-table-column>
-
-          <el-table-column
-            prop="selection_type"
-            label="选课方式"
-            width="100"
-            sortable="custom"
-          >
-            <template #default="{ row }">
-              <el-tag
-                :type="getSelectionTypeTag(row.selection_type)"
-                size="small"
-              >
-                {{ getSelectionTypeText(row.selection_type) }}
-              </el-tag>
+              {{ row.signup ? formatDateTime(row.signup?.signup_time) : "" }}
             </template>
           </el-table-column>
 
@@ -409,40 +393,22 @@
           >
             <template #default="{ row }">
               <el-tag
-                :type="getSelectionStatusTag(row.selection_status)"
+                :type="getSelectionStatusTag(row.signup.status)"
                 size="small"
               >
-                {{ getSelectionStatusText(row.selection_status) }}
+                {{ getSelectionStatusText(row.signup.status) }}
               </el-tag>
             </template>
           </el-table-column>
 
           <!-- 课程信息列 -->
           <el-table-column
-            prop="credits"
+            prop="course.credits"
             label="学分"
             width="80"
             sortable="custom"
             align="center"
           />
-
-          <el-table-column
-            prop="academic_year"
-            label="学年"
-            width="100"
-            sortable="custom"
-          />
-
-          <el-table-column
-            prop="semester"
-            label="学期"
-            width="100"
-            sortable="custom"
-          >
-            <template #default="{ row }">
-              {{ getSemesterText(row.semester) }}
-            </template>
-          </el-table-column>
 
           <!-- 成绩信息列 -->
           <el-table-column
@@ -824,6 +790,7 @@ import {
 } from "element-plus";
 import type { FormRules } from "element-plus";
 import * as echarts from "echarts";
+import { getCourses } from "@/api/courses";
 
 // ---------------------- 类型定义 ----------------------
 interface SelectionRecord {
@@ -915,7 +882,9 @@ const filterForm = reactive({
 
 const academicYears = computed(() => {
   const years = new Set(
-    selectionRecords.value.map(record => record.academic_year)
+    selectionRecords.value.map(record => {
+      return record.course.study_date.split("-")[0];
+    })
   );
   return Array.from(years).sort((a, b) => b.localeCompare(a));
 });
@@ -968,177 +937,184 @@ const withdrawRules: FormRules = {
 
 // ---------------------- 模拟数据 ----------------------
 const selectionRecords = ref<SelectionRecord[]>([
-  {
-    id: 1,
-    course_id: 1,
-    course_code: "SV101",
-    course_name: "基础发球入门",
-    course_type: "serve",
-    difficulty: "beginner",
-    teacher_id: 1,
-    teacher_name: "李教练",
-    teacher_title: "国家级教练",
-    credits: 1,
-    selection_time: "2024-01-10 14:30:25",
-    selection_type: "approved",
-    selection_status: "selected",
-    academic_year: "2023-2024",
-    semester: "spring",
-    grade_level: "A",
-    total_score: 92,
-    gpa: 4.0,
-    ranking: 5,
-    grade_status: "published",
-    is_featured: true,
-    location: "排球馆A区",
-    schedule: "每周一、三 14:00-16:00",
-    start_date: "2024-02-15",
-    end_date: "2024-06-15",
-    current_students: 12,
-    capacity: 20
-  },
-  {
-    id: 2,
-    course_id: 2,
-    course_code: "RC201",
-    course_name: "一传稳定性训练",
-    course_type: "receive",
-    difficulty: "intermediate",
-    teacher_id: 2,
-    teacher_name: "王教练",
-    teacher_title: "高级教练",
-    credits: 2,
-    selection_time: "2024-01-12 09:15:42",
-    selection_type: "normal",
-    selection_status: "selected",
-    academic_year: "2023-2024",
-    semester: "spring",
-    grade_status: "ungraded",
-    is_featured: false,
-    location: "排球馆B区",
-    schedule: "每周二、四 16:00-18:00",
-    start_date: "2024-03-01",
-    end_date: "2024-07-01",
-    current_students: 10,
-    capacity: 15
-  },
-  {
-    id: 3,
-    course_id: 3,
-    course_code: "SP301",
-    course_name: "战术扣球与线路变化",
-    course_type: "spike",
-    difficulty: "advanced",
-    teacher_id: 3,
-    teacher_name: "张教练",
-    teacher_title: "特级教练",
-    credits: 3,
-    selection_time: "2023-09-05 10:20:18",
-    selection_type: "approved",
-    selection_status: "completed",
-    withdraw_time: "2023-12-20 15:30:00",
-    withdraw_reason: "时间冲突",
-    academic_year: "2023-2024",
-    semester: "autumn",
-    grade_level: "B",
-    total_score: 85,
-    gpa: 3.5,
-    ranking: 12,
-    grade_status: "published",
-    is_featured: true,
-    location: "专业训练馆",
-    schedule: "每周五 14:00-16:00",
-    start_date: "2023-09-10",
-    end_date: "2024-01-10",
-    current_students: 9,
-    capacity: 10
-  },
-  {
-    id: 4,
-    course_id: 4,
-    course_code: "SV201",
-    course_name: "强力跳发球训练",
-    course_type: "serve",
-    difficulty: "intermediate",
-    teacher_id: 2,
-    teacher_name: "王教练",
-    teacher_title: "高级教练",
-    credits: 2,
-    selection_time: "2023-09-08 11:05:33",
-    selection_type: "manual",
-    selection_status: "withdrawn",
-    withdraw_time: "2023-10-15 09:40:59",
-    withdraw_reason: "个人原因退课",
-    academic_year: "2023-2024",
-    semester: "autumn",
-    grade_status: "ungraded",
-    is_featured: false,
-    location: "排球馆C区",
-    schedule: "每周二、四 16:00-18:00",
-    start_date: "2023-09-15",
-    end_date: "2024-01-15",
-    current_students: 15,
-    capacity: 15
-  },
-  {
-    id: 5,
-    course_id: 5,
-    course_code: "RC101",
-    course_name: "基础接球入门",
-    course_type: "receive",
-    difficulty: "beginner",
-    teacher_id: 4,
-    teacher_name: "刘教练",
-    teacher_title: "中级教练",
-    credits: 1,
-    selection_time: "2022-09-12 13:45:22",
-    selection_type: "normal",
-    selection_status: "completed",
-    academic_year: "2022-2023",
-    semester: "autumn",
-    grade_level: "A",
-    total_score: 95,
-    gpa: 4.0,
-    ranking: 3,
-    grade_status: "published",
-    is_featured: true,
-    location: "排球馆D区",
-    schedule: "每周一、四 09:00-11:00",
-    start_date: "2022-09-20",
-    end_date: "2023-01-20",
-    current_students: 18,
-    capacity: 25
-  },
-  {
-    id: 6,
-    course_id: 6,
-    course_code: "SP101",
-    course_name: "基础扣球入门",
-    course_type: "spike",
-    difficulty: "beginner",
-    teacher_id: 2,
-    teacher_name: "王教练",
-    teacher_title: "高级教练",
-    credits: 1,
-    selection_time: "2022-03-05 15:20:45",
-    selection_type: "approved",
-    selection_status: "completed",
-    academic_year: "2021-2022",
-    semester: "spring",
-    grade_level: "B",
-    total_score: 88,
-    gpa: 3.7,
-    ranking: 8,
-    grade_status: "published",
-    is_featured: false,
-    location: "排球馆E区",
-    schedule: "每周二、四 10:00-12:00",
-    start_date: "2022-03-10",
-    end_date: "2022-07-10",
-    current_students: 16,
-    capacity: 20
-  }
+  // {
+  //   id: 1,
+  //   course_id: 1,
+  //   course_code: "SV101",
+  //   course_name: "基础发球入门",
+  //   course_type: "serve",
+  //   difficulty: "beginner",
+  //   teacher_id: 1,
+  //   teacher_name: "李教练",
+  //   teacher_title: "国家级教练",
+  //   credits: 1,
+  //   selection_time: "2024-01-10 14:30:25",
+  //   selection_type: "approved",
+  //   selection_status: "selected",
+  //   academic_year: "2023-2024",
+  //   semester: "spring",
+  //   grade_level: "A",
+  //   total_score: 92,
+  //   gpa: 4.0,
+  //   ranking: 5,
+  //   grade_status: "published",
+  //   is_featured: true,
+  //   location: "排球馆A区",
+  //   schedule: "每周一、三 14:00-16:00",
+  //   start_date: "2024-02-15",
+  //   end_date: "2024-06-15",
+  //   current_students: 12,
+  //   capacity: 20
+  // },
+  // {
+  //   id: 2,
+  //   course_id: 2,
+  //   course_code: "RC201",
+  //   course_name: "一传稳定性训练",
+  //   course_type: "receive",
+  //   difficulty: "intermediate",
+  //   teacher_id: 2,
+  //   teacher_name: "王教练",
+  //   teacher_title: "高级教练",
+  //   credits: 2,
+  //   selection_time: "2024-01-12 09:15:42",
+  //   selection_type: "normal",
+  //   selection_status: "selected",
+  //   academic_year: "2023-2024",
+  //   semester: "spring",
+  //   grade_status: "ungraded",
+  //   is_featured: false,
+  //   location: "排球馆B区",
+  //   schedule: "每周二、四 16:00-18:00",
+  //   start_date: "2024-03-01",
+  //   end_date: "2024-07-01",
+  //   current_students: 10,
+  //   capacity: 15
+  // },
+  // {
+  //   id: 3,
+  //   course_id: 3,
+  //   course_code: "SP301",
+  //   course_name: "战术扣球与线路变化",
+  //   course_type: "spike",
+  //   difficulty: "advanced",
+  //   teacher_id: 3,
+  //   teacher_name: "张教练",
+  //   teacher_title: "特级教练",
+  //   credits: 3,
+  //   selection_time: "2023-09-05 10:20:18",
+  //   selection_type: "approved",
+  //   selection_status: "completed",
+  //   withdraw_time: "2023-12-20 15:30:00",
+  //   withdraw_reason: "时间冲突",
+  //   academic_year: "2023-2024",
+  //   semester: "autumn",
+  //   grade_level: "B",
+  //   total_score: 85,
+  //   gpa: 3.5,
+  //   ranking: 12,
+  //   grade_status: "published",
+  //   is_featured: true,
+  //   location: "专业训练馆",
+  //   schedule: "每周五 14:00-16:00",
+  //   start_date: "2023-09-10",
+  //   end_date: "2024-01-10",
+  //   current_students: 9,
+  //   capacity: 10
+  // },
+  // {
+  //   id: 4,
+  //   course_id: 4,
+  //   course_code: "SV201",
+  //   course_name: "强力跳发球训练",
+  //   course_type: "serve",
+  //   difficulty: "intermediate",
+  //   teacher_id: 2,
+  //   teacher_name: "王教练",
+  //   teacher_title: "高级教练",
+  //   credits: 2,
+  //   selection_time: "2023-09-08 11:05:33",
+  //   selection_type: "manual",
+  //   selection_status: "withdrawn",
+  //   withdraw_time: "2023-10-15 09:40:59",
+  //   withdraw_reason: "个人原因退课",
+  //   academic_year: "2023-2024",
+  //   semester: "autumn",
+  //   grade_status: "ungraded",
+  //   is_featured: false,
+  //   location: "排球馆C区",
+  //   schedule: "每周二、四 16:00-18:00",
+  //   start_date: "2023-09-15",
+  //   end_date: "2024-01-15",
+  //   current_students: 15,
+  //   capacity: 15
+  // },
+  // {
+  //   id: 5,
+  //   course_id: 5,
+  //   course_code: "RC101",
+  //   course_name: "基础接球入门",
+  //   course_type: "receive",
+  //   difficulty: "beginner",
+  //   teacher_id: 4,
+  //   teacher_name: "刘教练",
+  //   teacher_title: "中级教练",
+  //   credits: 1,
+  //   selection_time: "2022-09-12 13:45:22",
+  //   selection_type: "normal",
+  //   selection_status: "completed",
+  //   academic_year: "2022-2023",
+  //   semester: "autumn",
+  //   grade_level: "A",
+  //   total_score: 95,
+  //   gpa: 4.0,
+  //   ranking: 3,
+  //   grade_status: "published",
+  //   is_featured: true,
+  //   location: "排球馆D区",
+  //   schedule: "每周一、四 09:00-11:00",
+  //   start_date: "2022-09-20",
+  //   end_date: "2023-01-20",
+  //   current_students: 18,
+  //   capacity: 25
+  // },
+  // {
+  //   id: 6,
+  //   course_id: 6,
+  //   course_code: "SP101",
+  //   course_name: "基础扣球入门",
+  //   course_type: "spike",
+  //   difficulty: "beginner",
+  //   teacher_id: 2,
+  //   teacher_name: "王教练",
+  //   teacher_title: "高级教练",
+  //   credits: 1,
+  //   selection_time: "2022-03-05 15:20:45",
+  //   selection_type: "approved",
+  //   selection_status: "completed",
+  //   academic_year: "2021-2022",
+  //   semester: "spring",
+  //   grade_level: "B",
+  //   total_score: 88,
+  //   gpa: 3.7,
+  //   ranking: 8,
+  //   grade_status: "published",
+  //   is_featured: false,
+  //   location: "排球馆E区",
+  //   schedule: "每周二、四 10:00-12:00",
+  //   start_date: "2022-03-10",
+  //   end_date: "2022-07-10",
+  //   current_students: 16,
+  //   capacity: 20
+  // }
 ]);
+
+const initData = async () => {
+  const res = await getCourses();
+  console.log(res.data);
+  selectionRecords.value = res.data;
+};
+initData();
 
 const progressCourses = ref<ProgressCourse[]>([
   {
@@ -1183,43 +1159,49 @@ const progressCourses = ref<ProgressCourse[]>([
 // 过滤后的记录
 const filteredRecords = computed(() => {
   let filtered = [...selectionRecords.value];
-
+  filtered = filtered.filter(record =>
+    record.signup
+  );
   // 应用表单筛选
   if (filterForm.academicYear) {
-    filtered = filtered.filter(
-      record => record.academic_year === filterForm.academicYear
+    filtered = filtered.filter(record =>
+      record.course.study_date.includes(filterForm.academicYear)
     );
   }
 
   if (filterForm.semester) {
-    filtered = filtered.filter(
-      record => record.semester === filterForm.semester
-    );
+    filtered = filtered.filter(record => {
+      if (filterForm.semester === "spring") {
+        return record.course.study_date.split("-")[1] === "03";
+      } else {
+        return record.course.study_date.split("-")[1] === "09";
+      }
+    });
   }
 
   if (filterForm.courseType) {
     filtered = filtered.filter(
-      record => record.course_type === filterForm.courseType
+      record => record.category.id === filterForm.courseType
     );
   }
 
   if (filterForm.selectionStatus) {
     filtered = filtered.filter(
-      record => record.selection_status === filterForm.selectionStatus
+      record => record.signup.status === filterForm.selectionStatus
     );
   }
 
-  if (filterForm.gradeStatus) {
-    if (filterForm.gradeStatus === "graded") {
-      filtered = filtered.filter(record => record.grade_level);
-    } else if (filterForm.gradeStatus === "ungraded") {
-      filtered = filtered.filter(
-        record => !record.grade_level && record.selection_status === "completed"
-      );
-    } else if (filterForm.gradeStatus === "published") {
-      filtered = filtered.filter(record => record.grade_status === "published");
-    }
-  }
+  // if (filterForm.gradeStatus) {
+  //   if (filterForm.gradeStatus === "graded") {
+  //     filtered = filtered.filter(record => record.grade_level);
+  //   } else if (filterForm.gradeStatus === "ungraded") {
+  //     filtered = filtered.filter(
+  //       record => !record.grade_level && record.selection_status === "completed"
+  //     );
+  //   } else if (filterForm.gradeStatus === "published") {
+  //     filtered = filtered.filter(record => record.grade_status === "published");
+  //   }
+  // }
 
   // 应用快速筛选
   const activeQuickFilters = quickFilters.value.filter(filter => filter.active);
@@ -1254,13 +1236,13 @@ const filteredRecords = computed(() => {
 
   // 应用关键词搜索
   if (searchKeyword.value) {
-    const keyword = searchKeyword.value.toLowerCase();
+    const keyword = searchKeyword.value;
     filtered = filtered.filter(
       record =>
-        record.course_name.toLowerCase().includes(keyword) ||
-        record.course_code.toLowerCase().includes(keyword) ||
-        record.teacher_name.toLowerCase().includes(keyword) ||
-        record.course_type.toLowerCase().includes(keyword)
+        record.course.course_name.includes(keyword) ||
+        record.course.id == keyword ||
+        record.teacher.real_name.includes(keyword) ||
+        record.category.id == keyword
     );
   }
 
@@ -1323,27 +1305,28 @@ const getCourseTypeText = (type: string) => {
 
 const getCourseTypeTag = (type: string) => {
   const map: Record<string, string> = {
-    spike: "danger",
-    receive: "success",
-    serve: "primary"
+    1: "danger",
+    2: "success",
+    3: "primary",
+    4: "warning"
   };
   return map[type] || "info";
 };
 
 const getDifficultyText = (difficulty: string) => {
   const map: Record<string, string> = {
-    beginner: "初级",
-    intermediate: "中级",
-    advanced: "高级"
+    1: "初级",
+    2: "中级",
+    3: "高级"
   };
   return map[difficulty] || difficulty;
 };
 
 const getDifficultyTag = (difficulty: string) => {
   const map: Record<string, string> = {
-    beginner: "success",
-    intermediate: "warning",
-    advanced: "danger"
+    1: "success",
+    2: "warning",
+    3: "danger"
   };
   return map[difficulty] || "info";
 };
@@ -1368,18 +1351,18 @@ const getSelectionTypeTag = (type: string) => {
 
 const getSelectionStatusText = (status: string) => {
   const map: Record<string, string> = {
-    selected: "已选",
-    withdrawn: "已退",
-    completed: "已完成"
+    select: "已选",
+    reject: "已退",
+    pending: "待定"
   };
   return map[status] || status;
 };
 
 const getSelectionStatusTag = (status: string) => {
   const map: Record<string, string> = {
-    selected: "success",
-    withdrawn: "warning",
-    completed: "info"
+    select: "success",
+    reject: "danger",
+    pending: "info"
   };
   return map[status] || "info";
 };
