@@ -460,7 +460,7 @@
           <!-- 操作列 -->
           <el-table-column
             label="操作"
-            width="220"
+            width="180"
             fixed="right"
             align="center"
           >
@@ -475,7 +475,7 @@
                 </el-button>
 
                 <el-button
-                  v-if="row.selection_status === 'selected'"
+                  v-if="row.signup.application_type === '0' && !row.grade"
                   type="warning"
                   size="small"
                   @click="handleWithdraw(row)"
@@ -484,54 +484,13 @@
                 </el-button>
 
                 <el-button
-                  v-if="row.grade_status === 'published'"
+                  v-if="row.grade"
                   type="success"
                   size="small"
                   @click="downloadTranscript(row)"
                 >
                   <i class="fas fa-download" /> 成绩单
                 </el-button>
-
-                <el-dropdown
-                  v-if="
-                    row.selection_status === 'selected' ||
-                    row.selection_status === 'withdrawn'
-                  "
-                  @command="handleDropdownCommand"
-                >
-                  <el-button type="text" size="small">
-                    <i class="fas fa-ellipsis-v" />
-                  </el-button>
-                  <template #dropdown>
-                    <el-dropdown-menu>
-                      <el-dropdown-item
-                        v-if="row.selection_status === 'selected'"
-                        command="adjust"
-                        :data-row="row"
-                      >
-                        <i class="fas fa-exchange-alt" /> 申请调课
-                      </el-dropdown-item>
-                      <el-dropdown-item command="complaint" :data-row="row">
-                        <i class="fas fa-exclamation-circle" /> 申诉反馈
-                      </el-dropdown-item>
-                      <el-dropdown-item
-                        v-if="row.selection_status === 'withdrawn'"
-                        command="reapply"
-                        :data-row="row"
-                      >
-                        <i class="fas fa-redo" /> 重新申请
-                      </el-dropdown-item>
-                      <el-dropdown-item
-                        v-if="row.selection_status === 'withdrawn'"
-                        command="delete"
-                        :data-row="row"
-                        divided
-                      >
-                        <i class="fas fa-trash-alt" /> 删除记录
-                      </el-dropdown-item>
-                    </el-dropdown-menu>
-                  </template>
-                </el-dropdown>
               </div>
             </template>
           </el-table-column>
@@ -581,13 +540,13 @@
           class="progress-card"
         >
           <div class="progress-header">
-            <h3 class="progress-title">{{ course.course_name }}</h3>
+            <h3 class="progress-title">{{ course?.course?.course_name }}</h3>
             <div class="progress-status">
               <el-tag
-                :type="getProgressStatusTag(course.progress_status)"
+                :type="getProgressStatusTag(course)"
                 size="small"
               >
-                {{ getProgressStatusText(course.progress_status) }}
+                {{ getProgressStatusText(course) }}
               </el-tag>
             </div>
           </div>
@@ -595,15 +554,15 @@
           <div class="progress-info">
             <div class="info-item">
               <i class="fas fa-chalkboard-teacher" />
-              <span>{{ course.teacher_name }}</span>
+              <span>{{ course.teacher.real_name }}</span>
             </div>
             <div class="info-item">
               <i class="fas fa-clock" />
-              <span>{{ course.schedule }}</span>
+              <span>{{ course.course.schedule }}</span>
             </div>
             <div class="info-item">
               <i class="fas fa-calendar" />
-              <span>{{ formatDate(course.end_date) }} 结束</span>
+              <span>{{ formatDate(course.course.finish_date) }} 结束</span>
             </div>
           </div>
 
@@ -611,11 +570,11 @@
             <div class="progress-bar">
               <div class="progress-label">
                 <span>课程进度</span>
-                <span class="progress-percent">{{ course.progress }}%</span>
+                <span class="progress-percent">{{ 100 }}%</span>
               </div>
               <el-progress
-                :percentage="course.progress"
-                :color="getProgressColor(course.progress)"
+                :percentage="100"
+                :color="getProgressColor(100)"
                 :stroke-width="10"
                 :show-text="false"
               />
@@ -624,9 +583,9 @@
             <div class="progress-details">
               <div class="detail-item">
                 <span class="detail-label">出勤率</span>
-                <span class="detail-value">{{ course.attendance_rate }}%</span>
+                <span class="detail-value">{{ 78 }}%</span>
                 <el-progress
-                  :percentage="course.attendance_rate"
+                  :percentage="78"
                   :stroke-width="6"
                   :show-text="false"
                   color="#3498db"
@@ -636,10 +595,10 @@
               <div class="detail-item">
                 <span class="detail-label">作业完成</span>
                 <span class="detail-value"
-                  >{{ course.homework_completion }}%</span
+                  >{{ 80 }}%</span
                 >
                 <el-progress
-                  :percentage="course.homework_completion"
+                  :percentage="80"
                   :stroke-width="6"
                   :show-text="false"
                   color="#2ecc71"
@@ -648,28 +607,15 @@
 
               <div class="detail-item">
                 <span class="detail-label">测验平均分</span>
-                <span class="detail-value">{{ course.quiz_average }}分</span>
+                <span class="detail-value">{{ 79 }}分</span>
                 <el-progress
-                  :percentage="(course.quiz_average / 100) * 100"
+                  :percentage="(79 / 100) * 100"
                   :stroke-width="6"
                   :show-text="false"
                   color="#9b59b6"
                 />
               </div>
             </div>
-          </div>
-
-          <div class="progress-actions">
-            <el-button type="primary" size="small" @click="goToCourse(course)">
-              <i class="fas fa-external-link-alt" /> 进入课程
-            </el-button>
-            <el-button
-              type="default"
-              size="small"
-              @click="viewCourseMaterials(course)"
-            >
-              <i class="fas fa-file-download" /> 资料下载
-            </el-button>
           </div>
         </div>
       </div>
@@ -930,223 +876,18 @@ const withdrawRules: FormRules = {
 };
 
 // ---------------------- 模拟数据 ----------------------
-const selectionRecords = ref<SelectionRecord[]>([
-  // {
-  //   id: 1,
-  //   course_id: 1,
-  //   course_code: "SV101",
-  //   course_name: "基础发球入门",
-  //   course_type: "serve",
-  //   difficulty: "beginner",
-  //   teacher_id: 1,
-  //   teacher_name: "李教练",
-  //   teacher_title: "国家级教练",
-  //   credits: 1,
-  //   selection_time: "2024-01-10 14:30:25",
-  //   selection_type: "approved",
-  //   selection_status: "selected",
-  //   academic_year: "2023-2024",
-  //   semester: "spring",
-  //   grade_level: "A",
-  //   total_score: 92,
-  //   gpa: 4.0,
-  //   ranking: 5,
-  //   grade_status: "published",
-  //   is_featured: true,
-  //   location: "排球馆A区",
-  //   schedule: "每周一、三 14:00-16:00",
-  //   start_date: "2024-02-15",
-  //   end_date: "2024-06-15",
-  //   current_students: 12,
-  //   capacity: 20
-  // },
-  // {
-  //   id: 2,
-  //   course_id: 2,
-  //   course_code: "RC201",
-  //   course_name: "一传稳定性训练",
-  //   course_type: "receive",
-  //   difficulty: "intermediate",
-  //   teacher_id: 2,
-  //   teacher_name: "王教练",
-  //   teacher_title: "高级教练",
-  //   credits: 2,
-  //   selection_time: "2024-01-12 09:15:42",
-  //   selection_type: "normal",
-  //   selection_status: "selected",
-  //   academic_year: "2023-2024",
-  //   semester: "spring",
-  //   grade_status: "ungraded",
-  //   is_featured: false,
-  //   location: "排球馆B区",
-  //   schedule: "每周二、四 16:00-18:00",
-  //   start_date: "2024-03-01",
-  //   end_date: "2024-07-01",
-  //   current_students: 10,
-  //   capacity: 15
-  // },
-  // {
-  //   id: 3,
-  //   course_id: 3,
-  //   course_code: "SP301",
-  //   course_name: "战术扣球与线路变化",
-  //   course_type: "spike",
-  //   difficulty: "advanced",
-  //   teacher_id: 3,
-  //   teacher_name: "张教练",
-  //   teacher_title: "特级教练",
-  //   credits: 3,
-  //   selection_time: "2023-09-05 10:20:18",
-  //   selection_type: "approved",
-  //   selection_status: "completed",
-  //   withdraw_time: "2023-12-20 15:30:00",
-  //   withdraw_reason: "时间冲突",
-  //   academic_year: "2023-2024",
-  //   semester: "autumn",
-  //   grade_level: "B",
-  //   total_score: 85,
-  //   gpa: 3.5,
-  //   ranking: 12,
-  //   grade_status: "published",
-  //   is_featured: true,
-  //   location: "专业训练馆",
-  //   schedule: "每周五 14:00-16:00",
-  //   start_date: "2023-09-10",
-  //   end_date: "2024-01-10",
-  //   current_students: 9,
-  //   capacity: 10
-  // },
-  // {
-  //   id: 4,
-  //   course_id: 4,
-  //   course_code: "SV201",
-  //   course_name: "强力跳发球训练",
-  //   course_type: "serve",
-  //   difficulty: "intermediate",
-  //   teacher_id: 2,
-  //   teacher_name: "王教练",
-  //   teacher_title: "高级教练",
-  //   credits: 2,
-  //   selection_time: "2023-09-08 11:05:33",
-  //   selection_type: "manual",
-  //   selection_status: "withdrawn",
-  //   withdraw_time: "2023-10-15 09:40:59",
-  //   withdraw_reason: "个人原因退课",
-  //   academic_year: "2023-2024",
-  //   semester: "autumn",
-  //   grade_status: "ungraded",
-  //   is_featured: false,
-  //   location: "排球馆C区",
-  //   schedule: "每周二、四 16:00-18:00",
-  //   start_date: "2023-09-15",
-  //   end_date: "2024-01-15",
-  //   current_students: 15,
-  //   capacity: 15
-  // },
-  // {
-  //   id: 5,
-  //   course_id: 5,
-  //   course_code: "RC101",
-  //   course_name: "基础接球入门",
-  //   course_type: "receive",
-  //   difficulty: "beginner",
-  //   teacher_id: 4,
-  //   teacher_name: "刘教练",
-  //   teacher_title: "中级教练",
-  //   credits: 1,
-  //   selection_time: "2022-09-12 13:45:22",
-  //   selection_type: "normal",
-  //   selection_status: "completed",
-  //   academic_year: "2022-2023",
-  //   semester: "autumn",
-  //   grade_level: "A",
-  //   total_score: 95,
-  //   gpa: 4.0,
-  //   ranking: 3,
-  //   grade_status: "published",
-  //   is_featured: true,
-  //   location: "排球馆D区",
-  //   schedule: "每周一、四 09:00-11:00",
-  //   start_date: "2022-09-20",
-  //   end_date: "2023-01-20",
-  //   current_students: 18,
-  //   capacity: 25
-  // },
-  // {
-  //   id: 6,
-  //   course_id: 6,
-  //   course_code: "SP101",
-  //   course_name: "基础扣球入门",
-  //   course_type: "spike",
-  //   difficulty: "beginner",
-  //   teacher_id: 2,
-  //   teacher_name: "王教练",
-  //   teacher_title: "高级教练",
-  //   credits: 1,
-  //   selection_time: "2022-03-05 15:20:45",
-  //   selection_type: "approved",
-  //   selection_status: "completed",
-  //   academic_year: "2021-2022",
-  //   semester: "spring",
-  //   grade_level: "B",
-  //   total_score: 88,
-  //   gpa: 3.7,
-  //   ranking: 8,
-  //   grade_status: "published",
-  //   is_featured: false,
-  //   location: "排球馆E区",
-  //   schedule: "每周二、四 10:00-12:00",
-  //   start_date: "2022-03-10",
-  //   end_date: "2022-07-10",
-  //   current_students: 16,
-  //   capacity: 20
-  // }
-]);
+const selectionRecords = ref<SelectionRecord[]>([]);
 
 const initData = async () => {
   const res = await getCourses();
   console.log(res.data);
   selectionRecords.value = res.data;
+  progressCourses.value = res.data.filter(item => item.signup?.application_type === "0");
 };
 initData();
 
 const progressCourses = ref<ProgressCourse[]>([
-  {
-    id: 1,
-    course_name: "基础发球入门",
-    teacher_name: "李教练",
-    schedule: "每周一、三 14:00-16:00",
-    end_date: "2024-06-15",
-    progress: 65,
-    progress_status: "normal",
-    attendance_rate: 92,
-    homework_completion: 85,
-    quiz_average: 88
-  },
-  {
-    id: 2,
-    course_name: "一传稳定性训练",
-    teacher_name: "王教练",
-    schedule: "每周二、四 16:00-18:00",
-    end_date: "2024-07-01",
-    progress: 45,
-    progress_status: "warning",
-    attendance_rate: 78,
-    homework_completion: 65,
-    quiz_average: 72
-  },
-  {
-    id: 3,
-    course_name: "战术扣球与线路变化",
-    teacher_name: "张教练",
-    schedule: "每周五 14:00-16:00",
-    end_date: "2024-05-30",
-    progress: 80,
-    progress_status: "completed",
-    attendance_rate: 100,
-    homework_completion: 95,
-    quiz_average: 92
-  }
+
 ]);
 
 // ---------------------- 计算属性 ----------------------
@@ -1380,24 +1121,33 @@ const getGradeLevelClass = (grade: string) => {
   return map[grade] || "";
 };
 
-const getProgressStatusText = (status: string) => {
+const getProgressStatusText = (course: string) => {
   const map: Record<string, string> = {
     normal: "进行中",
     warning: "需关注",
     danger: "落后",
     completed: "已完成"
   };
+  if (course.grade) {
+    return map.completed
+  } else {
+    return map.normal
+  }
   return map[status] || status;
 };
 
-const getProgressStatusTag = (status: string) => {
+const getProgressStatusTag = (course: string) => {
   const map: Record<string, string> = {
     normal: "primary",
     warning: "warning",
     danger: "danger",
     completed: "success"
   };
-  return map[status] || "info";
+  if (course.grade) {
+    return map.completed
+  } else {
+    return map.normal
+  }
 };
 
 const getProgressColor = (progress: number) => {
